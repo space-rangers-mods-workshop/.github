@@ -1,0 +1,37 @@
+# Empty YAML template for a workshop mod. Copy to mods/<mod>.yaml and fill in.
+# Schema in design.md, section "Input: YAML per mod".
+
+mod: <id>   # id = mod repo folder in the workshop
+
+# public — rendered in the card README.md
+# all public text values are English, except proper names (authors, verbatim resource names)
+info:
+  name: <mod name>
+  author: <the WHOLE author list at once>   # input document, manual: exhibit authors + who assembled this version
+  summary: <short description>
+  description: <full description>
+
+# public — how the readable sources were produced, rendered in the card README.md
+# ordered chain of steps: how the museum archive was unpacked, with what it was decompiled,
+# how the sources were obtained; if the mod is new (no museum sources) — an EMPTY array
+# ref/note/date fields are always present but may be left empty; note — English, except verbatim
+# resource names (tools, Discord channels, mod titles), which stay in their original spelling;
+# values starting with # go in quotes ("#tag")
+acquire:
+  - ref: <url>            # working link for this step
+    note: <step description>
+    date: YYYY-MM-DD      # date of the source / step (may be left empty)
+  - ref: <url>
+    note: <step description>
+    date: YYYY-MM-DD
+
+# internal — input for the build tool, NOT shown on the card
+# museum exhibits this mod is based on — OPTIONAL: may be absent/empty if the mod is made
+# without museum sources (not every workshop mod is derived from the museum)
+based_on:
+  - museum_mod: <exhibit1>   # museum exhibit this mod is forked from
+    museum_release: v1.0.0   # release of this exhibit the fork is based on
+  - museum_mod: <exhibit2>
+    museum_release: v1.0.0
+  # readable sources are produced from these museum archives by a separate process
+  # (unpack/decompile) — out of scope of this iteration
