@@ -1,7 +1,5 @@
 # 🚀 {{MOD}}
 
-## 📝 Mod
-
 * **Name:** {{MOD}}
 * **Author:** {{AUTHOR}}
 * **License:** Creative Commons BY-NC-SA 4.0
@@ -16,31 +14,26 @@
 
 {{FULL_DESCRIPTION}}
 
----
-
-## 🔍 How the sources were obtained
-
-An ordered chain of reproducible steps — how the sources were unpacked, decompiled, and turned into readable form:
-
-```yaml
-{{ACQUIRE}}
-```
-
 {{#HAS_BASED_ON}}
 ---
 
-## 🏛️ Original
+## 🔗 Based on
 
-Modified and adapted version of the museum exhibit(s), based on their releases:
-
-{{MUSEUM_EXHIBITS}}
-
-The originals, unmodified versions are preserved in the [space-rangers-mods-museum](https://github.com/space-rangers-mods-museum/.github).
+```yaml
+{{BASED_ON}}
+```
 {{/HAS_BASED_ON}}
 
 ---
 
 ## 📁 Mod files
+
+{{#HAS_NEXUS}}
+* [nexusmods]({{NEXUSMODS}}) — the mod page on Nexus Mods
+{{/HAS_NEXUS}}
+* [latest release (archive)]({{REPOSITORY}}/releases/latest) — the mod packaged for download
+* [`mod/`](mod/) — the assembled, ready-to-deploy mod folder ({{DEPLOY_PATH}})
+* [`src/`](src/) — the readable sources
 
 {{FILES}}
 
@@ -53,3 +46,13 @@ The originals, unmodified versions are preserved in the [space-rangers-mods-muse
 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).**
 
 You are free to share and adapt it, provided you give credit to the authors, do not use it commercially, and release your derivative under the same license. For a mod derived from museum exhibits, that credit includes the original exhibit authors and a link back to the preserved originals. See [LICENSE](LICENSE) for the full license text.
+
+---
+
+## 🔍 How the sources were used
+
+An ordered chain of repeatable steps - how the source data was processed, modified and transformed into a usable form:
+
+```yaml
+{{ACQUIRE}}
+```
