@@ -21,9 +21,9 @@ log line for every step and stopping on the first failed step:
   6. update the showcase locally (``update_showcase.py``: append the mod to
      ``mods.csv`` and rebuild the showcase main page in ``.github``) — local,
      safe, not yet pushed;
-  7. publish the repository through ``gh`` (``gh repo create`` + push) and
-     create the release (``gh release create``, first release always ``v2.0.0``,
-     title = mod name);
+  7. publish the repository through ``gh`` (``gh repo create`` + push,
+     description set from the YAML's ``info.summary``) and create the release
+     (``gh release create``, first release always ``v2.0.0``, title = mod name);
   8. commit & push the showcase changes (``git add/commit/push`` in ``.github``)
      — only after step 7 succeeded, so the pushed page links to a live repo.
 
@@ -54,7 +54,7 @@ import yaml
 from generate_card import strip_conditional_blocks
 
 TOOL_NAME = "publish_mod.py"
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"
 DEFAULT_ORG = "space-rangers-mods-workshop"
 MUSEUM_ORG = "space-rangers-mods-museum"
 RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bumped upward
@@ -142,6 +142,7 @@ def main() -> None:
         raise SystemExit(1)
     info = data.get("info") or {}
     author = (info.get("author") or "").strip()
+    summary = (info.get("summary") or "").strip()
     based_on = data.get("based_on") or []
 
     # Default out-dir: the workshop working dir (parent of the .github showcase
@@ -210,12 +211,15 @@ def main() -> None:
         print("no-publish: stopped after local git repo + showcase local update — gh publish step skipped")
         return
 
-    # 7. Publish the repository through gh and create the release.
-    run_step(
-        log_path,
-        "gh-create-repo",
-        ["gh", "repo", "create", f"{args.org}/{mod}", "--public", "--source", str(out_dir), "--push"],
-    )
+    # 7. Publish the repository through gh and create the release. The mod
+    #    summary (from the input YAML's ``info.summary``) becomes the repo
+    #    description, so the new repo is not an empty "No description"
+    #    placeholder. GitHub caps descriptions at 350 chars, so the summary is
+    #    truncated to fit.
+    create_cmd = ["gh", "repo", "create", f"{args.org}/{mod}", "--public", "--source", str(out_dir), "--push"]
+    if summary:
+        create_cmd += ["--description", summary[:350]]
+    run_step(log_path, "gh-create-repo", create_cmd)
     #    ``--repo`` pins the release to the mod repo: without it ``gh`` targets
     #    the repo of the current directory, which for this tool is the showcase
     #    ``.github`` working copy — the release would ship to the wrong repo.
