@@ -19,6 +19,11 @@ regenerates the page, so it is safe to run repeatedly.
 
 The page layout comes from the template file ``template/showcase-readme.md``;
 the tool only substitutes the catalog rows into the ``{{ROWS}}`` placeholder.
+The same rendered page is also mirrored to ``profile/README.md``, which is
+what GitHub displays on the organization profile page (the root ``README.md``
+only renders when visiting the repo itself). In that copy relative image
+``src`` and relative file links are rewritten to absolute GitHub URLs, because
+``profile/README.md`` lives one directory deeper than the root README.
 
 Usage
 -----
@@ -33,7 +38,7 @@ import re
 from pathlib import Path
 
 TOOL_NAME = "update_showcase.py"
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"
 DEFAULT_ORG = "space-rangers-mods-workshop"
 DEFAULT_HEADER = [
     "mod_name",
@@ -47,6 +52,7 @@ TOOLS_DIR = Path(__file__).resolve().parent
 SHOWCASE_DIR = TOOLS_DIR.parent
 WORKSHOP_DIR = SHOWCASE_DIR.parent
 TEMPLATE_PATH = SHOWCASE_DIR / "template" / "showcase-readme.md"
+PROFILE_README_PATH = SHOWCASE_DIR / "profile" / "README.md"
 
 AUTHOR_RE = re.compile(r"^\*\s+\*\*Author:\*\*\s*(.*)$")
 
@@ -122,6 +128,53 @@ def build_rows_block(header: list[str], rows: list[list[str]]) -> str:
     )
 
 
+_IMG_SRC_RE = re.compile(r'src="([^"]+)"')
+_MD_LINK_RE = re.compile(r'(!?\[[^\]]*\]\()([^)]+)(\))')
+
+
+def _profile_url(target: str, org: str, raw: bool) -> str:
+    """Return an absolute GitHub URL for a relative path referenced from profile/README.md.
+
+    ``profile/README.md`` lives one directory deeper than the root README, so
+    a relative reference that resolves in the root README breaks there. Rewrite
+    it to an absolute URL — raw for images, blob for file links. Already
+    absolute targets (http(s), anchors, root-absolute) are returned unchanged.
+    """
+    if target.startswith(("http:", "https:", "#", "/")):
+        return target
+    branch = "main"
+    if raw:
+        return f"https://raw.githubusercontent.com/{org}/.github/{branch}/{target}"
+    return f"https://github.com/{org}/.github/blob/{branch}/{target}"
+
+
+def render_profile_readme(readme: str, org: str) -> str:
+    """Mirror the root showcase so it also renders as the organization profile page.
+
+    GitHub shows the org profile from ``profile/README.md`` in the ``.github``
+    repo. This rewrites relative image ``src`` attributes and relative file
+    links in the rendered root README to absolute GitHub URLs so the profile
+    copy renders the same content one directory deeper. Markdown image links
+    (``![..](..)``) are left untouched.
+    """
+    out = _IMG_SRC_RE.sub(
+        lambda m: f'src="{_profile_url(m.group(1), org, raw=True)}"', readme
+    )
+    return _MD_LINK_RE.sub(_link_sub(org), out)
+
+
+def _link_sub(org: str):
+    def _rewrite(m: re.Match[str]) -> str:
+        if m.group(1).startswith("!["):
+            return m.group(0)
+        target = m.group(2)
+        if target.startswith(("http:", "https:", "#", "/")):
+            return m.group(0)
+        return f"{m.group(1)}{_profile_url(target, org, raw=False)}{m.group(3)}"
+
+    return _rewrite
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--mod", required=True, help="workshop repo id of the mod (same as the repo name)")
@@ -129,6 +182,7 @@ def main() -> None:
     parser.add_argument("--org", default=DEFAULT_ORG, help=f"workshop org (default: {DEFAULT_ORG})")
     parser.add_argument("--csv", default=str(SHOWCASE_DIR / "mods.csv"), help="path to the workshop mod list .csv")
     parser.add_argument("--readme", default=str(SHOWCASE_DIR / "README.md"), help="path to the showcase main page README.md")
+    parser.add_argument("--profile-readme", default=str(PROFILE_README_PATH), help="path to the org profile README.md (default: <showcase>/profile/README.md)")
     args = parser.parse_args()
 
     mod = args.mod.strip()
@@ -183,8 +237,13 @@ def main() -> None:
     readme_path.parent.mkdir(parents=True, exist_ok=True)
     readme_path.write_text(readme, encoding="utf-8")
 
+    profile_path = Path(args.profile_readme)
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    profile_path.write_text(render_profile_readme(readme, args.org), encoding="utf-8")
+
     print(f"showcase: {csv_path} ({len(rows)} mod(s))")
     print(f"showcase: {readme_path}")
+    print(f"showcase: {profile_path}")
 
 
 if __name__ == "__main__":
