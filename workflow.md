@@ -42,12 +42,12 @@ anything that touches the remote org. With `--no-publish` the chain stops after 
 |---------------------------|-------------|----------------------------------------------------------------------------------------------------------|
 | 1. Input — mod YAML       | safe        | `mods/<mod>.yaml` with `based_on` + `info` (from `template/mod-input.yaml`)                              |
 | 2. Sources                | safe        | readable sources (for a forked mod, unpacked from the museum archive) — **separate process/tools** (consumed here)            |
-| 3. Card + license          | safe        | `README.md` from `template/mod-card.md` (`based_on` + `info`, `## 🏛️ Original` when `based_on` non-empty, CC BY-NC-SA 4.0 badge) + `LICENSE` from `template/LICENSE.md` (attribution + full legal code) |
-| 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml`, `.gitignore`                                             |
-| 5. Local git repository   | safe        | `git init` + initial commit (so `gh repo create --source --push` has something to push)                   |
+| 3. Card + license          | safe        | `README.md` from `template/mod-card.md` (`based_on` + `info`, `## 🔗 Based on` when `based_on` non-empty, CC BY-NC-SA 4.0 badge) + `LICENSE` from `template/LICENSE.md` (attribution + full legal code). For an existing dev repo the card is kept as-is — only the missing `LICENSE` is written |
+| 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml`, `.gitignore` (an existing dev repo keeps its own YAML and `.gitignore` — only missing files are written)                                             |
+| 5. Local git repository   | safe        | `git init` + initial commit (so `gh repo create --source --push` has something to push). For an existing dev repo init is skipped and only the newly added `LICENSE` is committed                   |
 | 6. Showcase — local update| safe        | `.csv` row + main page rebuilt in `workshop/.github` (local, not yet pushed)                               |
-| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push` + `gh release create v2.0.0` |
-| 8. Showcase — commit/push | side-effect | commit + push `mods.csv` and `README.md` in `workshop/.github` (only after step 7 succeeds)                |
+| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; `mod/` packaged into `<mod>.zip` (ModuleInfo.txt at the archive root); `gh release create v2.0.0` with that archive |
+| 8. Showcase — commit/push | side-effect | commit + push `mods.csv`, `README.md` and `profile/README.md` in `workshop/.github` (only after step 7 succeeds)                |
 
 ## Showcase — `.csv` → main page
 

@@ -1,0 +1,281 @@
+mod: AMod_Spacejunk
+
+# public — keys match ModuleInfo.txt; rendered into ModuleInfo.txt (build_spacejunk.py)
+# and the card README.md (generate_card.py)
+info:
+  Name: AMod_Spacejunk
+  Author: "LEOPARD, Huk, denballakh, ringill"
+  Conflict: ""
+  Priority: 1
+  Section: Разное
+  SectionEng: Miscellaneous
+  Languages: Rus,Eng
+  SmallDescription: На форме космоса добавляется панелька-смотрелка, показывающая какой предмет и где лежит в системе
+  SmallDescriptionEng: Spacejunk viewer panel
+  FullDescription: >-
+    Панель-обозреватель объектов текущей системы на форме космоса (звёздной карте). Два режима —
+    предметы и корабли (переключаются кнопками). Предметы: имя, раса, тех. уровень (TL), цена, вес,
+    расстояние; сортировка по цене, типу, TL, цене/весу, весу и особому свойству (акрину). Корабли:
+    имя, раса, расстояние, HP/вместимость корпуса; сортировка по HP, типу и расстоянию; корабль игрока
+    исключён. Раса отображается цветным маркером (в т.ч. подрасы клингов, пиратские кланы, пользовательские
+    фракции). Постраничный просмотр до 200 объектов. Кнопка центрирует карту на выбранном объекте
+  FullDescriptionEng: >-
+    An object viewer panel on the star map showing all items and ships in the current system.
+    Two modes — items and ships (toggle buttons). Items: name, race, tech level (TL), price,
+    weight, distance; sortable by price, type, TL, price/weight, weight, and special (acrin)
+    property. Ships: name, race, distance, HP/hull size; sortable by HP, type, and distance;
+    the player's ship is excluded. Race is shown as a colored marker (incl. Kling subraces,
+    pirate clans, custom factions). Paged viewing of up to 200 objects. A button centers the
+    map on the selected object.
+  # Nexus Mods page URL, rendered in the card README.md (empty = point hidden)
+  nexusmods: "https://www.nexusmods.com/spacerangersawarapart/mods/58"
+
+# public — the sources this mod is based on / derived from, rendered in the card README.md
+based_on:
+  - source: 🏛️ https://github.com/space-rangers-mods-museum/AMod_Spacejunk
+    note: AMod_Spacejunk - Huk version
+  - source: 🏛️ https://github.com/space-rangers-mods-museum/LEOGraphicsMod
+    note: LEOGraphicsMod - resources
+  - source: https://github.com/denballakh/Space-Rangers-Mods-Sources/tree/master/AnotherMods/AMod_Spacejunk
+    note: AMod_Spacejunk - denballakh version
+
+# public — how the readable sources were produced, rendered in the card README.md
+# base sources come from denballakh's Space-Rangers-Mods-Sources repo (local clone, no network fetch);
+# the graphics exhibit comes from the museum LEOGraphicsMod release archive (SHA-256 pinned per manifest)
+acquire:
+  # scaffold the headless toolchain — needed to decode the LEOGraphicsMod DAT/PKG
+  - ref: https://github.com/Xenomorphchyma/SRHD-XenoModKit
+    note: Clone SRHD XenoModKit 0.9.8 (headless DAT/PKG/script toolkit) and install the DAT/script codecs (BlockParEditor 2.1, RScript, rsmc).
+    command: >-
+      git clone https://github.com/Xenomorphchyma/SRHD-XenoModKit.git
+      && cd SRHD-XenoModKit && .\scripts\setup-tools.ps1
+    date: 2026-08-22
+
+  # base sources (denballakh) → src/
+  - ref: https://github.com/denballakh/Space-Rangers-Mods-Sources/tree/master/AnotherMods/AMod_Spacejunk
+    note: >-
+      Take denballakh's original AMod_Spacejunk sources (already cloned locally at
+      exploration/Space-Rangers-Mods-Sources) as the merge base and copy all four readable sources into src/,
+      keeping their denballakh filenames: CacheData_spacejunk.txt, Main_spacejunk.txt (full SpacejunkPanel UI +
+      Data.Script binding), Lang_spacejunk.txt (the Script.AMod_Spacejunk logic — Settings/Text/InitCode/TurnCode/
+      PressCodes/Utils/Functions), and Spacejunk.rson (RScript project).
+      Provenance: these sources descend from the "Universe" source pack distributed by blacksun-SR (Space-Rangers
+      "Universe" collection / Universe-Original-Mods-Source); blacksun-SR is credited as the pack source, not as an
+      author of this mod (he made no edits here — museum card credits Huk).
+      .scr route: the script is carried as a Lang.dat block (Script.AMod_Spacejunk) referenced by the panel via
+      GenerateCodeStringFromBlock. To actually RUN, SRHD requires a registered scenario script: a compiled stub .scr
+      (from Spacejunk.rson, via SRHD-XenoModKit `script build`) whose three engine code points (Top/Global GRun,
+      Init, Turn) each delegate to that Lang.dat block via
+      ExecuteCodeFromString(GenerateCodeStringFromBlock('Script.AMod_Spacejunk.*')). The registry pair that binds
+      name->.scr is REQUIRED, not dead: the `Data.Script { mod_spacejunk=1,Script.mod_spacejunk }` entry in
+      Main.dat (kept at the top of src/Main_spacejunk.txt) plus the `Script { mod_spacejunk=...mod_spacejunk.scr }`
+      block in CacheData (src/CacheData_spacejunk.txt, emitted as CFG/CacheData.dat). Without all three — Data.Script
+      registration, CacheData pointer, compiled .scr — InitCode (which sets sjMainPanel Active=True via
+      InterfaceState('StarMap','sjMainPanel',1)) never runs and the panel stays invisible.
+      Earlier "Model A (no .scr)" stripped Data.Script + CacheData to silence `TDataEC.PathGetBuf.
+      path=Script.mod_spacejunk` startup errors; that produced a clean log but a broken (invisible) panel. Correct
+      fix is the reverse — provide the compiled .scr so the registration resolves. Sources are copied verbatim —
+      no decode needed — except two recorded corrections: (1) denballakh's Lang_spacejunk.txt opens a top-level
+      `Script ~{` block (line 0) but never closes it — the file ships one `}` short, which breaks BlockPar parsing;
+      the workshop copy appends that missing closing brace. (2) src/Main_spacejunk.txt keeps the `Data.Script`
+      registration header (the abandoned Model A stripped it).
+      The Huk-derived src/CacheData.txt, src/Main.txt and src/mod_spacejunk.unverified.rson are removed.
+    command: >-
+      $src=..\exploration\Space-Rangers-Mods-Sources\AnotherMods\AMod_Spacejunk
+      && Copy-Item $src\CacheData_spacejunk.txt AMod_Spacejunk\src\
+      && Copy-Item $src\Main_spacejunk.txt AMod_Spacejunk\src\
+      && Copy-Item $src\Lang_spacejunk.txt AMod_Spacejunk\src\
+      && Copy-Item $src\Spacejunk.rson AMod_Spacejunk\src\
+      && Remove-Item AMod_Spacejunk\src\CacheData.txt, AMod_Spacejunk\src\Main.txt, AMod_Spacejunk\src\mod_spacejunk.unverified.rson
+    date: 2026-08-22
+
+  # fix — ExecuteCodeFromString read-back target scoping (runtime bug)
+  - ref: Lang_spacejunk.txt
+    note: >-
+      Runtime fix for `ExceptionExpressionEC Var not found:itemArray` on expanding the panel.
+      Authoritative rule (script-functions/Script_functions_list.txt:4183): with an ODD arg count there
+      is no return; with an EVEN count the LAST argument is the return. A return var that is a NEW
+      variable must be DECLARED WITH A CONCRETE TYPE (`int`/`str`) INSIDE the executed string; if it is
+      instead one of the previously-passed input args, no declaration is needed. `unknown` is not a
+      valid LocalVar-registering type, and an untyped bare assignment (`itemArray = ...`) does not
+      register a local in tempCode.LocalVar either — both prior attempts failed at runtime.
+      Consistent with the primary source (aScriptFun.pas, SF_ExecuteCodeFromString @12422): only input
+      args are added to tempCode.LocalVar via `.Add`, and read-back is `LocalVar.GetVar(av[High].VStr)`.
+      Fix applied across src/Lang_spacejunk.txt and src/Spacejunk.rson (byte-level, cp1251-preserving),
+      plus SFT() log diagnostics to confirm empirically on the 2025 build:
+        - UpdateObjects read-back: `itemArray` passed as BOTH input and return
+          (`ExecuteCodeFromString(code, 'itemArray', newarray(1), 'sort_key_array', newarray(1), 'itemArray')`)
+          so BOTH inner scratch vars are registered locals in the executed string (a bare/`unknown`
+          in-string assignment does NOT register, and any unpassed var like `sort_key_array` would raise
+          its own `Not link var`)
+        - OUTER receiving var `itemArray` (bare `itemArray = ExecuteCodeFromString(...)` in UpdateObjects)
+          is made linkable by declaring `itemArray` as a TVar global in Spacejunk.rson
+          (`"Var.Type": "Unknown"`, `"Global": true`, mirroring `GSJ_objects`; `Variables.Count` 8→9) and
+          recompiling the .scr stub — arrays have no scalar type keyword, so a TVar global is the only
+          way to give a bare assignment a linkable name
+        - every scalar read-back target declared in-string: `int result` (Items/Ships SortKey.Code 6+3),
+          `str result` (ReplaceOnce, Replace, RaceString, RaceString_Ship, ItemTechLevel, GetPageText)
+        - temporary SFT() log diagnostics around the read-back confirmed it empirically on the 2025
+          build (game log `Items read-back OK, dim=N`); the debug SFT lines were REMOVED afterward —
+          the shipped mod writes nothing extra to the log (see the cleanup step below).
+      Error evolution confirming the model (each stage = previous link fixed): `unknown itemArray` →
+      `Var not found:itemArray` (unknown not a registerable type); untyped `itemArray =` → still
+      `Var not found`; input-passed inner → `Not link var :itemArray` at the OUTER bare receiving var;
+      final fix (TVar global + sort_key_array input) → CONFIRMED working at runtime.
+      Also fixed the separate latent Center-button bug: PressCodes.Center passed the input as 'id' but
+      Functions.<objtype>.Center reads `object_id`; now passes 'object_id'.
+      Reproduce (exact old→new substitutions, byte-level cp1251, count asserts): run
+      `patches/patch_readback.py` on a fresh copy of denballakh's original src/Lang_spacejunk.txt
+      (after `patches/strip_sft_comments.py`). On the already-fixed committed src/ its asserts fail
+      by design — it is a reproducibility record, not a re-runnable now.
+    command: ""
+    date: 2026-08-22
+
+  # fix — Functions.Items/Ships must be direct children of Functions (block-resolution bug)
+  - ref: Lang_spacejunk.txt
+    note: >-
+      Runtime fix for the EMPTY object list (`SJ UpdateObjects: Items read-back OK, dim=1`).
+      GenerateCodeStringFromBlock (aScriptFun.pas SF_GenerateCodeStringFromBlock @12484) is PURE
+      dot-navigation: the path is split on '.', navigation starts at GR_BPLang (root of Lang.dat), and
+      EVERY dot-segment must be a DIRECT child block of the current one — there is NO `_` template
+      expansion at lookup. So `Functions.Items`/`Functions.Ships` must physically exist as direct
+      children of `Functions`. They did not: denballakh's `_ObjType ~{ ... SortKey ~{ Count= n ~{...}
+      } Display ~{...} }` doc block had ONE missing closing `}` (SortKey never closed), so Display
+      nested inside SortKey, `_ObjType` never closed before Items/Ships, and both parsed as children of
+      `_ObjType` — the game log warned `cant find block Script.AMod_Spacejunk.Functions.Items.Update [4]`.
+      The source indentation shows the author's INTENT: Items/Ships at 12-space indent = direct children
+      of Functions (siblings of _ObjType). Fix = insert one closing `}` so SortKey closes before Display
+      (byte-level cp1251-preserving patch, ASCII-only brace lines). The same brace structure exists in the
+      original denballakh source — this is the author's bug, not a regression.
+      Verified in the rebuilt Lang.dat (rangers.dat to_str dump): Functions has direct children
+      UpdateControlPanel/UpdateSortType/UpdateObjType/UpdateObjects/UpdatePage/_ObjType/Items/Ships;
+      Items.SortKey.Count=6 (keys 0-5, each with Description + Code), Items.TypeDescription=предметы,
+      Items.Update/.Display/.Center present.
+      Runtime (game log, 2026-08-22): `calling Items Update` → `read-back OK, dim=22`;
+      `calling Ships Update` → `read-back OK, dim=12`; no warnings. WORKING BUILD — the panel now
+      shows AND functions.
+    command: ""
+    date: 2026-08-22
+
+  # cleanup — drop temporary debug output before shipping
+  - ref: Lang_spacejunk.txt
+    note: >-
+      Removed the temporary SFT() log diagnostics (the two `SJ UpdateObjects: ...` lines) and all dead
+      `//SFT(...)` debug markers (the author's included) so the shipped mod writes nothing extra to the
+      game log. BlockPar strips `//`-prefixed comment lines at .dat encode time, so commented debug
+      lines were already absent from the built dat; deleting them keeps the readable source clean.
+      Versioning is handled by git. Useful doc comments (the _ObjType template contract lines such as
+      `object - объект; result - ...`) are kept.
+      Reproduce: run `patches/strip_sft_comments.py` (cp1251-preserving removal of `0=//SFT(` lines).
+    command: ""
+    date: 2026-08-22
+
+  # fix — language-neutral on-screen markers (decyrillicize the table words)
+  - ref: Lang_spacejunk.txt
+    note: >-
+      Replace the on-screen table words with distinct colored Latin markers so ONE source serves both
+      Rus/Eng Lang.dat (Eng is a byte-identical copy of Rus). SRHD has no inline-icon tag, so a colored
+      literal `<color=R,G,B>marker</color>` is the only text-based language-neutral fallback (same scheme
+      as the existing RaceColors/TLColors). Applied via a byte-level cp1251 patch (decode cp1251 →
+      ASCII-only edits → encode cp1251) with exact-count asserts. This also re-applies the `' т'`→`' t'`
+      tons-unit edit — the script is the COMPLETE reproducible record of the decyrillic changes.
+      Table words → markers (≤3 chars, no brackets, 10 unique RGB):
+        цена→cst(255,255,255) · тип→typ(170,170,170) · ТУ→lvl(0,255,255) ·
+        цена/<br>вес→c/w(255,160,50) · вес→wgt(130,180,255) · акрин→acr(220,175,90) ·
+        расстояние→dst(110,130,150) · ХП→hp(0,220,0) · предметы→itm(180,255,220) · кор→shp(180,150,255)
+      Gotchas: `Description=тип` occurs twice (Items.SortKey.1 + Ships.SortKey.1) → count=2;
+      `Description=цена` is a substring of `Description=цена/<br>вес`, so anchor it by end-of-line.
+      Reproduce: run `patches/decyrillic.py` on a FRESH copy of denballakh's original src/
+      Lang_spacejunk.txt (after `patches/strip_sft_comments.py`), then rebuild (build step below).
+      On the already-fixed committed src/ its count asserts fail by design — it is a reproducibility
+      record, not a re-runnable now (same contract as patch_readback.py).
+    command: >-
+      ..\..\.venv\Scripts\python.exe patches\decyrillic.py
+    date: 2026-08-22
+
+  # graphics exhibit (LEOPARD) → sibling working copy
+  - ref: https://github.com/space-rangers-mods-museum/LEOGraphicsMod/releases/tag/v1.0.0
+    note: Take the deterministic museum release v1.0.0 of LEOGraphicsMod, verify SHA-256, and extract it into a sibling working copy (LEOGraphicsMod/mod/).
+    command: >-
+      gh release download v1.0.0 --repo space-rangers-mods-museum/LEOGraphicsMod --pattern LEOGraphicsMod.zip
+      && (Get-FileHash LEOGraphicsMod.zip).Hash
+      && Expand-Archive LEOGraphicsMod.zip -DestinationPath LEOGraphicsMod\mod
+    # expected exhibit SHA-256: ce4f274e52431cdfffe54efb82655082382a2985fca23390bff578469e5e85ea
+    date: 2026-08-22
+
+  # unpack the graphics exhibit into readable sources → LEOGraphicsMod/src/
+  - ref: https://github.com/space-rangers-mods-museum/LEOGraphicsMod/releases/tag/v1.0.0
+    note: Decode LEOGraphicsMod into readable sources — PKG extracted natively by ModKit, both DAT decoded to BlockPar text. src/ holds the full tree; only the needed assets are pulled into mod/ during the merge below.
+    command: >-
+      cd SRHD-XenoModKit
+      && python -B srhd.py resource extract ..\LEOGraphicsMod\mod\LEOGraphicsMod.pkg ..\LEOGraphicsMod\src\resources
+      && python -B srhd.py dat decode ..\LEOGraphicsMod\mod\CFG\Main.dat ..\LEOGraphicsMod\src\Main.txt
+      && python -B srhd.py dat decode ..\LEOGraphicsMod\mod\CFG\CacheData.dat ..\LEOGraphicsMod\src\CacheData.txt
+    date: 2026-08-22
+
+  # decouple — bundle the panel textures BEFORE building (build checks they exist)
+  - ref: LEOGraphicsMod/src/resources/Data/FormStarMap
+    note: >-
+      Remove Dependence=LEOGraphicsMod by vendoring into mod/ the only LEOGraphicsMod assets the panel actually
+      references. The Spacejunk panel's 88 `GI,Bm.*` texture refs resolve to 14 logical names — Bm.FormStarMap.*
+      — that ONLY LEOGraphicsMod provided (its CacheData maps them to DATA\FormStarMap\*.gi). Removing the
+      dependency without bundling them would break the panel (missing textures). Decouple = copy those 14 .gi
+      from LEOGraphicsMod/src/resources/Data/FormStarMap/ into mod/Data/FormStarMap/, map the same 14 logical
+      names in this mod's own CacheData (new Bm.FormStarMap block in src/CacheData_spacejunk.txt, game-root-
+      relative paths Mods\Miscellaneous\AMod_Spacejunk\DATA\FormStarMap\<name>.gi, matching the working .scr
+      route), and drop Dependence=LEOGraphicsMod from ModuleInfo (no Dependence field is emitted — build_spacejunk.py
+      renders ModuleInfo from this YAML's info block). This step runs
+      BEFORE the build so the build's check_textures() (which fails fast if any of the 14 .gi are missing) passes.
+      The remaining Bm.FormCount2.* refs (2AddD/N/A, 2SubD/N/A) are base-game textures — no action. Excluded from
+      LEO's FormStarMap dir (not needed): ClosedPanel.gi, sjPanelCenterOld.gi, OpenedPanelOld.gi. After the build
+      step the mod is fully standalone; LEOGraphicsMod is no longer required at runtime.
+    command: >-
+      powershell -NoProfile -Command "Copy-Item ..\LEOGraphicsMod\src\resources\Data\FormStarMap\ItemCenterA.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\ItemCenterD.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\ItemCenterN.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\OpenedPanel.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\OpenedPanelButton.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageLeftA.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageLeftD.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageLeftH.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageLeftN.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageRightA.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageRightD.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageRightH.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPageRightN.gi,..\LEOGraphicsMod\src\resources\Data\FormStarMap\sjPanelCenter.gi -Destination mod\Data\FormStarMap"
+    date: 2026-08-22
+
+  # build the CURRENT variant via SRHD-XenoModKit — compile stub .scr, assemble mod/
+  - ref: build_spacejunk.py
+    note: >-
+      Assemble mod/ from the readable sources. Run from workshop/AMod_Spacejunk:
+      ..\..\.venv\Scripts\python.exe build_spacejunk.py
+      Layout (conventions from installed game reference mods):
+        mod/ModuleInfo.txt          UTF-16 LE BOM (no Dependence; panel textures bundled)
+        mod/CFG/Main.dat            from src/Main_spacejunk.txt  fmt=HDMain  unsigned (has Data.Script header)
+        mod/CFG/CacheData.dat       from src/CacheData_spacejunk.txt fmt=HDCache  unsigned (Bm.FormStarMap +
+                                    Script blocks)
+        mod/CFG/Rus/Lang.dat        from src/Lang_spacejunk.txt  fmt=HDMain  signed (Script.AMod_Spacejunk logic)
+        mod/CFG/Eng/Lang.dat        same content as Rus (Script block is language-independent; ModuleInfo
+                                    declares Languages=Rus,Eng, and SRHD loads Lang.dat per active language)
+        mod/Data/Script/mod_spacejunk.scr   compiled stub (from Spacejunk.rson)
+        mod/Data/FormStarMap/*.gi   the 14 panel textures (Bm.FormStarMap.*), bundled so the mod runs without
+                                    LEOGraphicsMod; build fails if any are missing (copied by the decouple step
+                                    above, so this passes on a fresh reproduction)
+      Prerequisite: compile the stub via SRHD-XenoModKit (RScript compiler installed by setup-tools.ps1):
+        ..\SRHD-XenoModKit\srhd.cmd script build src\Spacejunk.rson --scr mod\Data\Script\mod_spacejunk.scr ^
+          --lang tmp\spacejunk_lang.txt --tools-root ..\..\workshop --overwrite
+      (Spacejunk.rson has no dialogs, so the lang fragment is empty; the mod's real Lang.dat comes from
+      Lang_spacejunk.txt, not from the RSON compile.)
+      CacheData path is game-root-relative (Mods\Miscellaneous\AMod_Spacejunk\DATA\Script\mod_spacejunk.scr),
+      matching the mod's own ModuleInfo Section=Miscellaneous (SectionEng=Miscellaneous) and the user's
+      ModCFG (Miscellaneous\AMod_Spacejunk); Windows is case-insensitive so the lowercase Data\Script folder resolves.
+      Deployment under the game's Mods\ folder is the user's task, not part of this build.
+    command: >-
+      ..\SRHD-XenoModKit\srhd.cmd script build src\Spacejunk.rson --scr mod\Data\Script\mod_spacejunk.scr --lang tmp\spacejunk_lang.txt --tools-root ..\..\workshop --overwrite
+      && ..\..\.venv\Scripts\python.exe build_spacejunk.py
+    date: 2026-08-22
+
+  # author ModuleInfo.txt for the CURRENT variant — no Dependence (textures bundled)
+  - ref: ModuleInfo.txt
+    note: >-
+      ModuleInfo.txt in mod/ is rendered by build_spacejunk.py (write_module_info) from this YAML's info block —
+      the info keys mirror ModuleInfo.txt, so this step is purely documentary, not a separate source. Verified at
+      runtime against these sources: NO Dependence line — the mod no longer relies on a separately-installed
+      LEOGraphicsMod, because the panel's FormStarMap textures are now bundled into mod/Data/FormStarMap/ and
+      served by this mod's own CacheData (Bm.FormStarMap block; see the decouple step above).
+      Section=Разное/SectionEng=Miscellaneous, Priority=1, Languages=Rus,Eng, and Rus/Eng descriptions (all taken
+      from the info block). Author lists the actual authors of this mod: Huk (author of AMod_Spacejunk, per museum
+      ModuleInfo.txt) → denballakh (published Space-Rangers-Mods-Sources, our merge base) → LEOPARD (LEOGraphicsMod
+      textures, now vendored into this mod) → ringill (assembler). blacksun-SR is NOT an author of this mod — his
+      role is the "Universe" pack source the mod was originally taken from; that provenance is recorded in the
+      acquire route, not the author line. File is UTF-16 LE with BOM.
+    date: 2026-08-22

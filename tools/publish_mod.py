@@ -10,20 +10,23 @@ log line for every step and stopping on the first failed step:
      are consumed as-is; unpacking is a separate process with separate tools and
      is out of scope here;
   3. generate the card README (``generate_card.py``: ``based_on`` + ``info``,
-     ``## 🏛️ Original`` when ``based_on`` non-empty, CC BY-NC-SA 4.0 badge) and
+     ``## 🔗 Based on`` when ``based_on`` non-empty, CC BY-NC-SA 4.0 badge) and
      the ``LICENSE`` file (from ``template/LICENSE.md``: attribution with the
-     author list and museum-exhibit links, plus the full CC BY-NC-SA 4.0 legal
-     code);
+     author list and source links, plus the full CC BY-NC-SA 4.0 legal code);
   4. form the local repository folder (card + license + a copy of the mod YAML +
-     a generated ``.gitignore``);
-  5. initialize the local git repository (``git init`` + initial commit) — a
+     a generated ``.gitignore``; an existing dev repo is kept as-is, only the
+     missing LICENSE is added);
+  5. initialize the local git repository (``git init`` + commit) — for an
+     existing dev repo this just commits the new LICENSE; a
      purely local, safe step, so the later ``gh`` push has something to push;
   6. update the showcase locally (``update_showcase.py``: append the mod to
      ``mods.csv`` and rebuild the showcase main page in ``.github``) — local,
      safe, not yet pushed;
   7. publish the repository through ``gh`` (``gh repo create`` + push,
-     description set from the YAML's ``info.summary``) and create the release
-     (``gh release create``, first release always ``v2.0.0``, title = mod name);
+     description set from the YAML's ``info.SmallDescriptionEng``), package the
+     assembled ``mod/`` folder into ``{mod}.zip`` (ModuleInfo.txt at the archive
+     root) and create the release (``gh release create`` with that archive,
+     first release always ``v2.0.0``, title = mod name);
   8. commit & push the showcase changes (``git add/commit/push`` in ``.github``)
      — only after step 7 succeeded, so the pushed page links to a live repo.
 
@@ -47,6 +50,7 @@ import datetime as _dt
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -54,9 +58,8 @@ import yaml
 from generate_card import strip_conditional_blocks
 
 TOOL_NAME = "publish_mod.py"
-TOOL_VERSION = "1.1.0"
+TOOL_VERSION = "1.2.0"
 DEFAULT_ORG = "space-rangers-mods-workshop"
-MUSEUM_ORG = "space-rangers-mods-museum"
 RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bumped upward
 
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -98,20 +101,20 @@ def run_step(log_path: Path, name: str, argv: list[str]) -> None:
 def render_license(mod: str, author: str, org: str, based_on: list, repository: str) -> str:
     """Fill the CC BY-NC-SA 4.0 ``LICENSE`` from ``template/LICENSE.md``.
 
-    The museum-derivation attribution paragraph in the template is wrapped in
-    a ``{{#HAS_BASED_ON}} ... {{/HAS_BASED_ON}}`` block, mirroring the card. When
-    the mod is forked from museum exhibits (``based_on`` non-empty) the block is
-    kept and each exhibit is credited with a museum link; when it is made without
-    museum sources the block is removed, so the license never claims a museum
-    origin that does not exist — the license then covers the author's own work.
+    The derivation attribution paragraph in the template is wrapped in a
+    ``{{#HAS_BASED_ON}} ... {{/HAS_BASED_ON}}`` block, mirroring the card. When
+    the mod is derived from museum exhibits / other sources (``based_on``
+    non-empty) the block is kept and each source is credited with a label and a
+    link; when it is made without such sources the block is removed, so the
+    license never claims an origin that does not exist — the license then covers
+    the author's own work.
     """
     template = LICENSE_TEMPLATE_PATH.read_text(encoding="utf-8")
     flags = {"HAS_BASED_ON": bool(based_on)}
     template = strip_conditional_blocks(template, flags)
 
-    museum = "\n".join(
-        f"- **{e.get('museum_mod', '')}** — "
-        f"[release {e.get('museum_release', '')}](https://github.com/{MUSEUM_ORG}/{e.get('museum_mod', '')})"
+    sources = "\n".join(
+        f"- **{e.get('note', '')}** — {e.get('source', '')}"
         for e in based_on
     )
 
@@ -120,8 +123,28 @@ def render_license(mod: str, author: str, org: str, based_on: list, repository: 
         .replace("{{MOD}}", mod)
         .replace("{{AUTHOR}}", author)
         .replace("{{REPOSITORY}}", repository)
-        .replace("{{MUSEUM_EXHIBITS}}", museum)
+        .replace("{{MUSEUM_EXHIBITS}}", sources)
     )
+
+
+def build_mod_archive(out_dir: Path, mod: str) -> Path:
+    """Zip the assembled ``mod/`` folder with its contents at the archive root.
+
+    The release archive mirrors the museum convention: ``ModuleInfo.txt`` sits at
+    the root of the zip, so a user unpacks it straight into the game's ``Mods/``
+    folder. ``*.zip`` is gitignored in the dev repo, so the archive is never
+    committed.
+    """
+    mod_dir = out_dir / "mod"
+    if not mod_dir.is_dir():
+        raise StepFailed(f"cannot package release archive: {mod_dir} is not a directory")
+    zip_path = out_dir / f"{mod}.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(mod_dir.rglob("*")):
+            if path.is_dir():
+                continue
+            zf.write(path, path.relative_to(mod_dir).as_posix())
+    return zip_path
 
 
 def main() -> None:
@@ -141,8 +164,8 @@ def main() -> None:
         print("ERROR: YAML is missing the 'mod' field")
         raise SystemExit(1)
     info = data.get("info") or {}
-    author = (info.get("author") or "").strip()
-    summary = (info.get("summary") or "").strip()
+    author = (info.get("Author") or "").strip()
+    summary = (info.get("SmallDescriptionEng") or "").strip()
     based_on = data.get("based_on") or []
 
     # Default out-dir: the workshop working dir (parent of the .github showcase
@@ -150,23 +173,31 @@ def main() -> None:
     # showcase repo.
     out_dir = Path(args.out_dir) if args.out_dir else WORKSHOP_DIR / mod
     out_dir.mkdir(parents=True, exist_ok=True)
+    is_existing_repo = (out_dir / ".git").is_dir()
     log_path = Path(args.log) if args.log else out_dir / "publish.log"
 
     log_write(log_path, f"START publish {mod} ({TOOL_NAME} {TOOL_VERSION})")
     print(f"publish {mod}: chain start")
 
     # 3. Generate the card README (workshop has no manifest — the files section
-    #    is left empty; no extract tool) and the LICENSE.
-    run_step(
-        log_path,
-        "card",
-        [
-            sys.executable, str(TOOLS_DIR / "generate_card.py"),
-            "--yaml", str(Path(args.yaml_path)),
-            "--out", str(out_dir / "README.md"),
-            "--org", args.org,
-        ],
-    )
+    #    is left empty; no extract tool) and the LICENSE. For an existing dev
+    #    repo the card README may carry hand-written sections (e.g. a mod
+    #    evolution log) that the template cannot reproduce, so it is kept as-is
+    #    and only the missing LICENSE is written.
+    if (out_dir / "README.md").exists():
+        log_write(log_path, "card: README.md already present — kept as-is")
+        print("[card] README.md already present — kept as-is")
+    else:
+        run_step(
+            log_path,
+            "card",
+            [
+                sys.executable, str(TOOLS_DIR / "generate_card.py"),
+                "--yaml", str(Path(args.yaml_path)),
+                "--out", str(out_dir / "README.md"),
+                "--org", args.org,
+            ],
+        )
     license_text = render_license(
         mod, author, args.org, based_on,
         f"https://github.com/{args.org}/{mod}",
@@ -177,9 +208,14 @@ def main() -> None:
 
     # 4. Form the local repository folder — the source files of the mod.
     #    Copy the mod YAML in first: it records where the instance came from
-    #    and lives with the mod. The pipeline log (``.log``) is excluded.
-    shutil.copy2(args.yaml_path, out_dir / Path(args.yaml_path).name)
-    (out_dir / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    #    and lives with the mod. An existing dev repo already has these (plus a
+    #    hand-tuned ``.gitignore``), so they are only written when missing; the
+    #    pipeline log (``.log``) is excluded either way.
+    yaml_target = out_dir / Path(args.yaml_path).name
+    if not yaml_target.exists():
+        shutil.copy2(args.yaml_path, yaml_target)
+    if not (out_dir / ".gitignore").exists():
+        (out_dir / ".gitignore").write_text("*.log\n", encoding="utf-8")
 
     required = ["README.md", "LICENSE", Path(args.yaml_path).name, ".gitignore"]
     missing = [name for name in required if not (out_dir / name).exists()]
@@ -191,10 +227,21 @@ def main() -> None:
 
     # 5. Local git repository — safe, purely local step: initialize the repo
     #    and make the initial commit, so the later ``gh repo create --push``
-    #    (step 7) has something to push.
-    run_step(log_path, "git-init", ["git", "-C", str(out_dir), "init"])
+    #    (step 7) has something to push. An existing dev repo is already a git
+    #    repo on ``main``, so init is skipped and only the newly added LICENSE
+    #    is committed (a no-op commit would fail with exit 1).
+    if not is_existing_repo:
+        run_step(log_path, "git-init", ["git", "-C", str(out_dir), "init"])
     run_step(log_path, "git-add", ["git", "-C", str(out_dir), "add", "-A"])
-    run_step(log_path, "git-commit", ["git", "-C", str(out_dir), "commit", "-m", f"Add {mod} mod"])
+    staged = subprocess.run(
+        ["git", "-C", str(out_dir), "diff", "--cached", "--quiet"],
+        check=False, capture_output=True, text=True,
+    )
+    if staged.returncode != 0:
+        run_step(log_path, "git-commit", ["git", "-C", str(out_dir), "commit", "-m", f"Add {mod} mod"])
+    else:
+        log_write(log_path, "git: nothing staged — dev repo already clean")
+        print("git: nothing staged — dev repo already clean")
 
     # 6. Showcase — local update. Safe, local step: append the mod to the
     #    workshop mod list ``mods.csv`` and rebuild the showcase main page in
@@ -212,21 +259,27 @@ def main() -> None:
         return
 
     # 7. Publish the repository through gh and create the release. The mod
-    #    summary (from the input YAML's ``info.summary``) becomes the repo
-    #    description, so the new repo is not an empty "No description"
+    #    summary (from the input YAML's ``info.SmallDescriptionEng``) becomes
+    #    the repo description, so the new repo is not an empty "No description"
     #    placeholder. GitHub caps descriptions at 350 chars, so the summary is
     #    truncated to fit.
     create_cmd = ["gh", "repo", "create", f"{args.org}/{mod}", "--public", "--source", str(out_dir), "--push"]
     if summary:
         create_cmd += ["--description", summary[:350]]
     run_step(log_path, "gh-create-repo", create_cmd)
-    #    ``--repo`` pins the release to the mod repo: without it ``gh`` targets
-    #    the repo of the current directory, which for this tool is the showcase
-    #    ``.github`` working copy — the release would ship to the wrong repo.
+    #    Package the assembled ``mod/`` folder into the release archive first
+    #    (ModuleInfo.txt at the archive root, museum convention), then attach
+    #    it to the release. ``--repo`` pins the release to the mod repo: without
+    #    it ``gh`` targets the repo of the current directory, which for this
+    #    tool is the showcase ``.github`` working copy — the release would ship
+    #    to the wrong repo.
+    zip_path = build_mod_archive(out_dir, mod)
+    log_write(log_path, f"OK archive: {zip_path}")
+    print(f"[archive] {zip_path}")
     run_step(
         log_path,
         "gh-release",
-        ["gh", "release", "create", args.version, "--repo", f"{args.org}/{mod}", "--title", mod],
+        ["gh", "release", "create", args.version, "--repo", f"{args.org}/{mod}", "--title", mod, str(zip_path)],
     )
 
     # 8. Showcase — commit & push. Side-effect step: the updated ``mods.csv``
@@ -234,8 +287,13 @@ def main() -> None:
     #    step 7, so the pushed page never links to a missing repo.
     #    ``update_showcase`` is idempotent — on a re-run of an already-listed
     #    mod there is nothing staged, so commit/push are skipped (a no-op
-    #    commit would fail with exit 1).
-    run_step(log_path, "showcase-add", ["git", "-C", str(SHOWCASE_DIR), "add", "mods.csv", "README.md"])
+    #    commit would fail with exit 1). ``profile/README.md`` is staged too so
+    #    the org profile reflects the new mod.
+    run_step(
+        log_path,
+        "showcase-add",
+        ["git", "-C", str(SHOWCASE_DIR), "add", "mods.csv", "README.md", "profile/README.md"],
+    )
     staged = subprocess.run(
         ["git", "-C", str(SHOWCASE_DIR), "diff", "--cached", "--quiet"],
         check=False, capture_output=True, text=True,
