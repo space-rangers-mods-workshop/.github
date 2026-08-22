@@ -14,6 +14,7 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 
 | Mod | Author | Mod | Summary |
 |-----|--------|-----|---------|
+| AMod_Spacejunk | LEOPARD, Huk, denballakh, ringill | [AMod_Spacejunk](https://github.com/space-rangers-mods-workshop/AMod_Spacejunk) | Spacejunk viewer panel |
 
 ## ⚖️ License
 
