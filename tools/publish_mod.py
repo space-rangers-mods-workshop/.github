@@ -11,8 +11,9 @@ log line for every step and stopping on the first failed step:
      is out of scope here;
   3. generate the card README (``generate_card.py``: ``based_on`` + ``info``,
      ``## 🔗 Based on`` when ``based_on`` non-empty, CC BY-NC-SA 4.0 badge) and
-     the ``LICENSE`` file (from ``template/LICENSE.md``: attribution with the
-     author list and source links, plus the full CC BY-NC-SA 4.0 legal code);
+     the ``LICENSE`` file (from ``template/LICENSE``: a plain-text attribution
+     block with the author list and source links, plus the full CC BY-NC-SA
+     4.0 legal code);
   4. form the local repository folder (card + license + a copy of the mod YAML +
      a generated ``.gitignore``; an existing dev repo is kept as-is, only the
      missing LICENSE is added);
@@ -65,7 +66,7 @@ RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bu
 TOOLS_DIR = Path(__file__).resolve().parent
 SHOWCASE_DIR = TOOLS_DIR.parent  # workshop/.github — the showcase repo local working copy
 WORKSHOP_DIR = SHOWCASE_DIR.parent
-LICENSE_TEMPLATE_PATH = SHOWCASE_DIR / "template" / "LICENSE.md"
+LICENSE_TEMPLATE_PATH = SHOWCASE_DIR / "template" / "LICENSE"
 
 
 class StepFailed(RuntimeError):
@@ -99,7 +100,7 @@ def run_step(log_path: Path, name: str, argv: list[str]) -> None:
 
 
 def render_license(mod: str, author: str, org: str, based_on: list, repository: str) -> str:
-    """Fill the CC BY-NC-SA 4.0 ``LICENSE`` from ``template/LICENSE.md``.
+    """Fill the CC BY-NC-SA 4.0 ``LICENSE`` from ``template/LICENSE``.
 
     The derivation attribution paragraph in the template is wrapped in a
     ``{{#HAS_BASED_ON}} ... {{/HAS_BASED_ON}}`` block, mirroring the card. When
@@ -116,7 +117,7 @@ def render_license(mod: str, author: str, org: str, based_on: list, repository: 
     # The input sources may carry a leading provenance marker (e.g. 🏛️ for a
     # museum-derived source); strip it so the license lists clean URLs.
     sources = "\n".join(
-        f"- **{e.get('note', '')}** — {e.get('source', '').replace('🏛️ ', '').replace('🏛️', '')}"
+        f"- {e.get('note', '')} — {e.get('source', '').replace('🏛️ ', '').replace('🏛️', '')}"
         for e in based_on
     )
 
