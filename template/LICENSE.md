@@ -11,12 +11,9 @@ Source: {{REPOSITORY}}
 License: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 {{#HAS_BASED_ON}}
-This is a modified and adapted version of one or more museum exhibits:
+This work is based on / derived from the following original sources:
 
 {{MUSEUM_EXHIBITS}}
-
-The originals, unmodified versions are preserved in the
-[space-rangers-mods-museum](https://github.com/space-rangers-mods-museum/.github).
 {{/HAS_BASED_ON}}
 
 ---

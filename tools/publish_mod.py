@@ -113,8 +113,10 @@ def render_license(mod: str, author: str, org: str, based_on: list, repository: 
     flags = {"HAS_BASED_ON": bool(based_on)}
     template = strip_conditional_blocks(template, flags)
 
+    # The input sources may carry a leading provenance marker (e.g. 🏛️ for a
+    # museum-derived source); strip it so the license lists clean URLs.
     sources = "\n".join(
-        f"- **{e.get('note', '')}** — {e.get('source', '')}"
+        f"- **{e.get('note', '')}** — {e.get('source', '').replace('🏛️ ', '').replace('🏛️', '')}"
         for e in based_on
     )
 
