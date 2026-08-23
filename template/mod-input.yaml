@@ -1,4 +1,4 @@
-# Empty YAML template for a workshop mod. Copy to mods/<mod>.yaml and fill in.
+# Empty YAML template for a workshop mod. Copy to <mod>/<mod>.yaml (the mod repo folder) and fill in.
 # Schema in design.md, section "Input: YAML per mod".
 
 mod: <id>   # id = mod repo folder in the workshop

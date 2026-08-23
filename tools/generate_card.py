@@ -36,9 +36,9 @@ YAML and has no per-mod config.
 
 Usage
 -----
-    python generate_card.py --yaml mods/AMod_Spacejunk.yaml \
+    python generate_card.py --yaml ../../AMod_Spacejunk/AMod_Spacejunk.yaml \
         --out ../../AMod_Spacejunk/README.md
-    python generate_card.py --yaml mods/AMod_Spacejunk.yaml \
+    python generate_card.py --yaml ../../AMod_Spacejunk/AMod_Spacejunk.yaml \
         --manifest AMod_Spacejunk.manifest.json --out ../../AMod_Spacejunk/README.md
 """
 from __future__ import annotations

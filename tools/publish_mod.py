@@ -5,7 +5,9 @@ What this does
 Reads a single mod YAML and runs the publish chain in strict order, writing a
 log line for every step and stopping on the first failed step:
 
-  1. resolve the input — ``mods/<mod>.yaml`` (``mod``, ``info``, ``based_on``);
+  1. resolve the input — the single mod YAML ``<mod>/<mod>.yaml`` (``mod``,
+     ``info``, ``based_on``), passed as the positional argument; its own folder
+     is the mod repository folder;
   2. sources — the readable sources unpacked/decompiled from the museum archive
      are consumed as-is; unpacking is a separate process with separate tools and
      is out of scope here;
@@ -14,9 +16,9 @@ log line for every step and stopping on the first failed step:
      the ``LICENSE`` file (from ``template/LICENSE``: a plain-text attribution
      block with the author list and source links, plus the full CC BY-NC-SA
      4.0 legal code);
-  4. form the local repository folder (card + license + a copy of the mod YAML +
-     a generated ``.gitignore``; an existing dev repo is kept as-is, only the
-     missing LICENSE is added);
+  4. form the local repository folder (card + license + the mod YAML — the
+     single source already lives in the folder — + a generated ``.gitignore``;
+     an existing dev repo is kept as-is, only the missing LICENSE is added);
   5. initialize the local git repository (``git init`` + commit) — for an
      existing dev repo this just commits the new LICENSE; a
      purely local, safe step, so the later ``gh`` push has something to push;
@@ -37,18 +39,17 @@ useful for a local verification run.
 
 Usage
 -----
-    python publish_mod.py mods/AMod_Spacejunk.yaml \
-        --out-dir ../../AMod_Spacejunk
+    # run from workshop/.github/tools; the YAML is the single source, its
+    # folder (../../AMod_Spacejunk) is the mod repo folder
+    python publish_mod.py ../../AMod_Spacejunk/AMod_Spacejunk.yaml
 
     # local-only run (no gh, no remote):
-    python publish_mod.py mods/AMod_Spacejunk.yaml \
-        --out-dir ./build --no-publish
+    python publish_mod.py ../../AMod_Spacejunk/AMod_Spacejunk.yaml --no-publish
 """
 from __future__ import annotations
 
 import argparse
 import datetime as _dt
-import shutil
 import subprocess
 import sys
 import zipfile
@@ -65,7 +66,6 @@ RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bu
 
 TOOLS_DIR = Path(__file__).resolve().parent
 SHOWCASE_DIR = TOOLS_DIR.parent  # workshop/.github — the showcase repo local working copy
-WORKSHOP_DIR = SHOWCASE_DIR.parent
 LICENSE_TEMPLATE_PATH = SHOWCASE_DIR / "template" / "LICENSE"
 
 
@@ -152,8 +152,8 @@ def build_mod_archive(out_dir: Path, mod: str) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("yaml_path", help="path to the mod YAML (mods/<mod>.yaml)")
-    parser.add_argument("--out-dir", help="local repository folder for the mod (default: <workshop working dir>/<mod>, flat next to .github)")
+    parser.add_argument("yaml_path", help="path to the mod YAML (<mod>/<mod>.yaml — the single source, inside the mod repo folder)")
+    parser.add_argument("--out-dir", help="local repository folder for the mod (default: the mod YAML's own folder — yaml_path.parent)")
     parser.add_argument("--org", default=DEFAULT_ORG, help=f"workshop org (default: {DEFAULT_ORG})")
     parser.add_argument("--version", default=RELEASE_VERSION, help=f"release version (default: {RELEASE_VERSION}, the first release; bump for subsequent releases)")
     parser.add_argument("--no-publish", action="store_true", help="run card+license -> repo folder -> local git init -> showcase local update only (no gh, no remote, no showcase push)")
@@ -171,10 +171,10 @@ def main() -> None:
     summary = (info.get("SmallDescriptionEng") or "").strip()
     based_on = data.get("based_on") or []
 
-    # Default out-dir: the workshop working dir (parent of the .github showcase
-    # repo), so mod repos sit flat next to .github — never nested inside the
-    # showcase repo.
-    out_dir = Path(args.out_dir) if args.out_dir else WORKSHOP_DIR / mod
+    # Default out-dir: the mod YAML's own folder. The YAML is the single source
+    # and already lives inside the mod repo folder, so that folder IS the repo —
+    # nothing is copied in, and the repo is never nested inside the showcase.
+    out_dir = Path(args.out_dir).resolve() if args.out_dir else Path(args.yaml_path).resolve().parent
     out_dir.mkdir(parents=True, exist_ok=True)
     is_existing_repo = (out_dir / ".git").is_dir()
     log_path = Path(args.log) if args.log else out_dir / "publish.log"
@@ -209,14 +209,11 @@ def main() -> None:
     log_write(log_path, f"OK license: {out_dir / 'LICENSE'}")
     print(f"[license] {out_dir / 'LICENSE'}")
 
-    # 4. Form the local repository folder — the source files of the mod.
-    #    Copy the mod YAML in first: it records where the instance came from
-    #    and lives with the mod. An existing dev repo already has these (plus a
-    #    hand-tuned ``.gitignore``), so they are only written when missing; the
-    #    pipeline log (``.log``) is excluded either way.
-    yaml_target = out_dir / Path(args.yaml_path).name
-    if not yaml_target.exists():
-        shutil.copy2(args.yaml_path, yaml_target)
+    # 4. Form the local repository folder — the source files of the mod. The
+    #    mod YAML (the single source) already lives here — it is the folder's
+    #    own input, not copied in. An existing dev repo keeps a hand-tuned
+    #    ``.gitignore``, so it is only written when missing; the pipeline log
+    #    (``.log``) is excluded either way.
     if not (out_dir / ".gitignore").exists():
         (out_dir / ".gitignore").write_text("*.log\n", encoding="utf-8")
 

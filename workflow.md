@@ -6,7 +6,8 @@ counterpart of the [museum workflow](../museum/.github/workflow.md): a mod may b
 museum exhibit, adapted, and released as evolving versions starting at `v2.0.0`, or developed from
 scratch and released the same way.
 
-The input — `mods/<mod>.yaml` (`based_on` + `info`) — feeds the pipeline. `based_on` is an optional
+The input — `<mod>/<mod>.yaml` (the single mod YAML living inside the mod's own repo folder;
+`based_on` + `info`) — feeds the pipeline. `based_on` is an optional
 list of the museum exhibits (zero or more) the mod is forked from; for a forked mod the readable
 sources come from those museum archives through a **separate process and separate tools**
 (unpack/decompile), which is out of scope of this document — this workflow consumes their output.
@@ -32,7 +33,7 @@ Three GitHub entities in the workshop:
 
 | input                                             | command                                                             | output                                                                                  |
 |---------------------------------------------------|---------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| filled `mods/<mod>.yaml` (`based_on` + `info`) + sources | `python tools/publish_mod.py mods/<mod>.yaml`                       | mod repo `space-rangers-mods-workshop/<mod>` created + pushed; release `v2.0.0` (first)  |
+| filled `<mod>/<mod>.yaml` (`based_on` + `info`) + sources | `python tools/publish_mod.py ../<mod>/<mod>.yaml`             | mod repo `space-rangers-mods-workshop/<mod>` created + pushed; release `v2.0.0` (first)  |
 
 Steps are ordered **safe-first, side-effects last**: every locally executable step comes before
 anything that touches the remote org. With `--no-publish` the chain stops after all safe local steps
@@ -40,10 +41,10 @@ anything that touches the remote org. With `--no-publish` the chain stops after 
 
 | step                      | phase       | output                                                                                                   |
 |---------------------------|-------------|----------------------------------------------------------------------------------------------------------|
-| 1. Input — mod YAML       | safe        | `mods/<mod>.yaml` with `based_on` + `info` (from `template/mod-input.yaml`)                              |
+| 1. Input — mod YAML       | safe        | `<mod>/<mod>.yaml` in the mod repo folder (`workshop/<mod>/`), `based_on` + `info` (from `template/mod-input.yaml`)                              |
 | 2. Sources                | safe        | readable sources (for a forked mod, unpacked from the museum archive) — **separate process/tools** (consumed here)            |
 | 3. Card + license          | safe        | `README.md` from `template/mod-card.md` (`based_on` + `info`, `## 🔗 Based on` when `based_on` non-empty, CC BY-NC-SA 4.0 badge) + `LICENSE` from `template/LICENSE` (plain-text attribution + full legal code). For an existing dev repo the card is kept as-is — only the missing `LICENSE` is written |
-| 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml`, `.gitignore` (an existing dev repo keeps its own YAML and `.gitignore` — only missing files are written)                                             |
+| 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml` (already the single source in the folder), `.gitignore` (an existing dev repo keeps its own `.gitignore` — only missing files are written)                                             |
 | 5. Local git repository   | safe        | `git init` + initial commit (so `gh repo create --source --push` has something to push). For an existing dev repo init is skipped and only the newly added `LICENSE` is committed                   |
 | 6. Showcase — local update| safe        | `.csv` row + main page rebuilt in `workshop/.github` (local, not yet pushed)                               |
 | 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; `mod/` packaged into `<mod>.zip` (ModuleInfo.txt at the archive root); `gh release create v2.0.0` with that archive |
