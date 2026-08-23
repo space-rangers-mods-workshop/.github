@@ -5,15 +5,13 @@ What this does
 Reads two inputs and fills the single card template (English) that every mod
 repository in the workshop carries:
 
-  * the mod YAML (``mod``, ``info``, ``acquire``, ``based_on``) — the ``info``
-    block carries the public text values verbatim: ``info.Author`` is the whole
-    author list (an input document, entered manually — the authors of the source
-    exhibits plus whoever assembled the version), ``info.SmallDescriptionEng``
-    the short description and ``info.FullDescriptionEng`` the full one;
+  * the mod YAML (``mod``, ``info``, ``based_on``) — the ``info`` block carries
+    the public text values verbatim: ``info.Author`` is the whole author list
+    (an input document, entered manually — the authors of the source exhibits
+    plus whoever assembled the version), ``info.SmallDescriptionEng`` the short
+    description and ``info.FullDescriptionEng`` the full one;
     ``info.nexusmods`` the Nexus Mods page URL and ``info.SectionEng`` the
     deployment subfolder under ``/Mods`` (SectionEng);
-  * the ``acquire`` section is reproduced verbatim as it appears in the input
-    YAML (an ordered chain of how the readable sources were obtained).
 
 The ``based_on`` block drives the conditional ``## 🔗 Based on`` section: when
 it is non-empty the generator reproduces the raw ``based_on:`` block (one
@@ -101,7 +99,7 @@ def extract_section(yaml_path: Path, key: str, fallback: list) -> str:
     The card reproduces the section 1:1 as it appears in the input YAML, so the
     generator copies the raw text of the top-level ``key:`` and its indented
     block instead of re-serializing — ``yaml.dump`` would turn empty fields into
-    ``null`` and reorder the keys. Used for both ``acquire`` and ``based_on``.
+    ``null`` and reorder the keys. Used for ``based_on``.
     Falls back to a ``yaml.dump`` of the parsed steps if the key cannot be
     located in the raw text.
     """
@@ -137,22 +135,18 @@ def render_files_table(files: list[dict]) -> str:
     return "\n".join([header, separator, rows])
 
 
-def render_card(mod: str, acquire_block: str, files_block: str, author: str,
+def render_card(mod: str, files_block: str, author: str,
                 short_desc: str, full_desc: str, template: str, org: str,
                 based_on_block: str, nexusmods: str = "", section: str = "") -> str:
     deploy_path = f"/Mods/{section}/{mod}" if section else ""
     flags = {"HAS_BASED_ON": bool(based_on_block.strip()), "HAS_NEXUS": bool(nexusmods)}
     template = strip_conditional_blocks(template, flags)
 
-    if not acquire_block.strip():
-        acquire_block = "_no acquisition steps recorded_"
-
     repository = f"https://github.com/{org}/{mod}"
 
     return (
         template
         .replace("{{MOD}}", mod)
-        .replace("{{ACQUIRE}}", acquire_block)
         .replace("{{FILES}}", files_block)
         .replace("{{AUTHOR}}", author)
         .replace("{{SHORT_DESCRIPTION}}", short_desc)
@@ -187,7 +181,6 @@ def main() -> None:
     section = (info.get("SectionEng") or "").strip()
     based_on = data.get("based_on") or []
 
-    acquire_block = extract_section(Path(args.yaml), "acquire", data.get("acquire") or [])
     based_on_block = extract_section(Path(args.yaml), "based_on", based_on)
 
     files_block = ""
@@ -200,12 +193,12 @@ def main() -> None:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
-        render_card(mod, acquire_block, files_block, author, short_desc, full_desc,
+        render_card(mod, files_block, author, short_desc, full_desc,
                     template, args.org, based_on_block, nexusmods, section),
         encoding="utf-8",
     )
     print(f"card: {out}")
-    print(f"  mod: {mod} · author: {author or '(empty)'} · acquire section: {'yes' if acquire_block.strip() else 'no'} · based_on: {len(based_on)}")
+    print(f"  mod: {mod} · author: {author or '(empty)'} · based_on: {len(based_on)}")
     print(f"  description: short={'yes' if short_desc else 'no'} · full={'yes' if full_desc else 'no'}")
 
 

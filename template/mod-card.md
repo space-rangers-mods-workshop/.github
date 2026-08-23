@@ -51,8 +51,4 @@ You are free to share and adapt it, provided you give credit to the authors, do 
 
 ## 🔍 How the sources were used
 
-An ordered chain of repeatable steps - how the source data was processed, modified and transformed into a usable form:
-
-```yaml
-{{ACQUIRE}}
-```
+An ordered chain of repeatable steps - how the source data was processed, modified and transformed into a usable form: [{{MOD}}.yaml](./{{MOD}}.yaml)
