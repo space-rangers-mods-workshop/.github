@@ -27,8 +27,9 @@ log line for every step and stopping on the first failed step:
      safe, not yet pushed;
   7. publish the repository through ``gh`` (``gh repo create`` + push,
      description set from the YAML's ``info.SmallDescriptionEng``), package the
-     assembled ``mod/`` folder into ``{mod}.zip`` (ModuleInfo.txt at the archive
-     root) and create the release (``gh release create`` with that archive,
+     assembled ``mod/`` folder into ``{mod}.zip`` under its own path in the game
+     tree (``Mods/<SectionEng>/{mod}/…``, ``Miscellaneous`` for a workshop mod)
+     and create the release (``gh release create`` with that archive,
      first release always ``v2.0.0``, title = mod name);
   8. commit & push the showcase changes (``git add/commit/push`` in ``.github``)
      — only after step 7 succeeded, so the pushed page links to a live repo.
@@ -60,9 +61,12 @@ import yaml
 from generate_card import strip_conditional_blocks
 
 TOOL_NAME = "publish_mod.py"
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.3.0"
 DEFAULT_ORG = "space-rangers-mods-workshop"
 RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bumped upward
+# A workshop mod is not tied to the section of the pack it came from — the yaml's
+# info.SectionEng (Miscellaneous) is where it deploys, the same value the card prints.
+WORKSHOP_SECTION = "Miscellaneous"
 
 TOOLS_DIR = Path(__file__).resolve().parent
 SHOWCASE_DIR = TOOLS_DIR.parent  # workshop/.github — the showcase repo local working copy
@@ -130,23 +134,25 @@ def render_license(mod: str, author: str, org: str, based_on: list, repository: 
     )
 
 
-def build_mod_archive(out_dir: Path, mod: str) -> Path:
-    """Zip the assembled ``mod/`` folder with its contents at the archive root.
+def build_mod_archive(out_dir: Path, mod: str, section: str) -> Path:
+    """Zip the assembled ``mod/`` folder under its chain in the game tree.
 
-    The release archive mirrors the museum convention: ``ModuleInfo.txt`` sits at
-    the root of the zip, so a user unpacks it straight into the game's ``Mods/``
-    folder. ``*.zip`` is gitignored in the dev repo, so the archive is never
-    committed.
+    The release archive keeps the mod's own path — ``Mods/<section>/<mod>/…`` — so
+    a user unpacks it straight into the game folder and the category survives the
+    round trip; ``section`` is the mod's ``info.SectionEng`` (``Miscellaneous`` for
+    a workshop mod). ``*.zip`` is gitignored in the dev repo, so the archive is
+    never committed.
     """
     mod_dir = out_dir / "mod"
     if not mod_dir.is_dir():
         raise StepFailed(f"cannot package release archive: {mod_dir} is not a directory")
     zip_path = out_dir / f"{mod}.zip"
+    root = f"Mods/{section}/{mod}"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(mod_dir.rglob("*")):
             if path.is_dir():
                 continue
-            zf.write(path, path.relative_to(mod_dir).as_posix())
+            zf.write(path, f"{root}/{path.relative_to(mod_dir).as_posix()}")
     return zip_path
 
 
@@ -169,6 +175,7 @@ def main() -> None:
     info = data.get("info") or {}
     author = (info.get("Author") or "").strip()
     summary = (info.get("SmallDescriptionEng") or "").strip()
+    section = (info.get("SectionEng") or "").strip() or WORKSHOP_SECTION
     based_on = data.get("based_on") or []
 
     # Default out-dir: the mod YAML's own folder. The YAML is the single source
@@ -268,12 +275,13 @@ def main() -> None:
         create_cmd += ["--description", summary[:350]]
     run_step(log_path, "gh-create-repo", create_cmd)
     #    Package the assembled ``mod/`` folder into the release archive first
-    #    (ModuleInfo.txt at the archive root, museum convention), then attach
+    #    (the mod's own path in the game tree — ``Mods/<SectionEng>/<mod>/`` — so
+    #    it unpacks straight into the game folder), then attach
     #    it to the release. ``--repo`` pins the release to the mod repo: without
     #    it ``gh`` targets the repo of the current directory, which for this
     #    tool is the showcase ``.github`` working copy — the release would ship
     #    to the wrong repo.
-    zip_path = build_mod_archive(out_dir, mod)
+    zip_path = build_mod_archive(out_dir, mod, section)
     log_write(log_path, f"OK archive: {zip_path}")
     print(f"[archive] {zip_path}")
     run_step(

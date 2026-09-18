@@ -47,7 +47,7 @@ anything that touches the remote org. With `--no-publish` the chain stops after 
 | 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml` (already the single source in the folder), `.gitignore` (an existing dev repo keeps its own `.gitignore` — only missing files are written)                                             |
 | 5. Local git repository   | safe        | `git init` + initial commit (so `gh repo create --source --push` has something to push). For an existing dev repo init is skipped and only the newly added `LICENSE` is committed                   |
 | 6. Showcase — local update| safe        | `.csv` row + main page rebuilt in `workshop/.github` (local, not yet pushed)                               |
-| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; `mod/` packaged into `<mod>.zip` (ModuleInfo.txt at the archive root); `gh release create v2.0.0` with that archive |
+| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; `mod/` packaged into `<mod>.zip` under its own path in the game tree (`Mods/<SectionEng>/<mod>/…`, `Miscellaneous` for a workshop mod); `gh release create v2.0.0` with that archive |
 | 8. Showcase — commit/push | side-effect | commit + push `mods.csv`, `README.md` and `profile/README.md` in `workshop/.github` (only after step 7 succeeds)                |
 
 ## Showcase — `.csv` → main page
