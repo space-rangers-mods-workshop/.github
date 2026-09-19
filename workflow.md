@@ -29,6 +29,45 @@ Three GitHub entities in the workshop:
   the shared tools, the `.csv` mod list and the main showcase page built from that `.csv`; its local
   working copy is `workshop/.github`, where this file and the templates live.
 
+## Publication preconditions
+
+On the assembled `mod/` tree, before it is packaged or released:
+
+- **Every `.dat` the mod ships must carry the engine signature.** The game verifies an optional
+  8-byte checksum header on each `CFG/*.dat` it loads; an unsigned file still decrypts and loads,
+  but it raises the engine flag `ResourceChecksumFailed`, which disqualifies the run — **all Steam
+  achievements, achievement-stat progress and the leaderboard upload are blocked** (every
+  achievement unlock checks this flag directly). The affected files are `mod/CFG/Main.dat`,
+  `mod/CFG/<Lang>/Lang.dat` (`Rus`/`Eng`) and `mod/CFG/CacheData.dat`.
+
+  Sign each file with the `rangers.dat` codec — the same checksum the engine computes:
+
+  ```python
+  import rangers.dat as d
+  text = src_txt.read_bytes().decode("utf-16")          # the decoded .txt source
+  d.DAT.from_str(text).to_dat(dat_path, fmt="HDMain", sign=True)   # CacheData → fmt="HDCache"
+  ```
+
+  Audit an assembled tree before publishing:
+
+  ```python
+  from pathlib import Path
+  import rangers.dat as d
+  for p in sorted(Path("mod").rglob("*.dat")):
+      print(p, d.check_signed(p.read_bytes()))          # every line must be True
+  ```
+
+  Signing is integrity, not authenticity — it is recomputable by anyone, but it is what keeps the
+  engine from marking the run as modified.
+
+- **Do not replace a base-game file the engine checksums.** `EC_Data.pas` carries a 327-entry CRC
+  table (base `data\quest\*.qmm`, `data\abmap\*.map`/`.opt`, base `data\script\*.scr` such as
+  `pc_pla01.scr`, and the shipped DLLs `okgf.dll`/`zlib.dll`/`matrixgame.dll`/`steam_api.dll`/…).
+  A mod adds its own files; overwriting one of these raises the same flag.
+
+Neither rule is enforced by `publish_mod.py` today — they are preconditions checked on the assembled
+`mod/` folder.
+
 ## Full chain — one command
 
 | input                                             | command                                                             | output                                                                                  |
