@@ -7,10 +7,10 @@ museum exhibit, adapted, and released as evolving versions starting at `v2.0.0`,
 scratch and released the same way.
 
 The input — `<mod>/<mod>.yaml` (the single mod YAML living inside the mod's own repo folder;
-`based_on` + `info`) — feeds the pipeline. `based_on` is an optional
+`based_on` + `info` + `changes`) — feeds the pipeline. `based_on` is an optional
 list of the museum exhibits (zero or more) the mod is forked from; for a forked mod the readable
-sources come from those museum archives through a **separate process and separate tools**
-(unpack/decompile), which is out of scope of this document — this workflow consumes their output.
+sources come from those museum archives through `tools/unpack_mod.py`, and the assembled `mod/`
+folder through `tools/build_mod.py` (see below).
 
 ## Two GitHub organizations — do not conflate them
 
@@ -68,6 +68,53 @@ On the assembled `mod/` tree, before it is packaged or released:
 Neither rule is enforced by `publish_mod.py` today — they are preconditions checked on the assembled
 `mod/` folder.
 
+### Hard rules for `<mod>.yaml`
+
+Every workshop mod YAML declares these three values, always — they are not per-mod choices:
+
+```yaml
+info:
+  Priority: 1
+  Section: Разное
+  SectionEng: Miscellaneous
+```
+
+The workshop publishes every mod under the **Miscellaneous** (`Разное`) section, together with the
+whole community collection; a mod's own section from its original ModuleInfo is not carried over.
+
+## Sources and assembly — the generic tools
+
+Two tools replace the old per-mod `build_<mod>.py` script:
+
+- **`tools/unpack_mod.py`** — unpack any mod into `mod/` + readable `src/`. Accepts a pack tree
+  (`Mods/<Section>/<Mod>`, e.g. under `origin_artefact/unpacked/<pack>/`), a museum release `.zip`,
+  or the mod folder itself; stages `mod/` byte-exact, decodes every `CFG/*.dat` into `src/`
+  (falling back to the BlockParEditor CLI for a `Lang.dat` that trips the toolkit's
+  `Ошибка: Пустое имя блока` bug), and decompiles `DATA/Script/*.scr`:
+  ```
+  python tools/unpack_mod.py <pack-tree | museum.zip | mod-folder> --mod <Mod>
+  ```
+- **`tools/build_mod.py`** — assemble `mod/` from `src/`: render `mod/ModuleInfo.txt` from the
+  YAML's `info`, encode `src/*.txt` into **signed** `CFG/*.dat` (matched by convention —
+  `Main*.txt`→`Main.dat`/`HDMain`, `CacheData*.txt`→`CacheData.dat`/`HDCache`,
+  `Lang_<Lang>*.txt`→`<Lang>/Lang.dat`, or one generic `Lang*.txt` for every declared language),
+  verify the signatures, and check that every `Mods\<section>\<mod>\…` path the sources reference
+  resolves inside `mod/` (and that its section equals `info.SectionEng`):
+  ```
+  python tools/build_mod.py <mod>/<mod>.yaml
+  ```
+
+Mod-specific adaptations — bundling a resource from another mod, compiling a script, fixing a brace,
+repointing the mod's own `Mods\<section>\…` paths at `Miscellaneous` — are **one-off steps recorded
+in the YAML's `changes` list**, not a per-mod script.
+
+The user-facing texts come from templates too:
+
+- `template/mod-card.md` → `tools/generate_card.py` → the repo `README.md`;
+- `template/instruction.md` → `tools/generate_instruction.py` → `doc/instruction.md`, filled from
+  the YAML; the Features / How to use / Shout outs sections are written by hand — the generator
+  never overwrites an existing instruction without `--force`.
+
 ## Full chain — one command
 
 | input                                             | command                                                             | output                                                                                  |
@@ -80,13 +127,14 @@ anything that touches the remote org. With `--no-publish` the chain stops after 
 
 | step                      | phase       | output                                                                                                   |
 |---------------------------|-------------|----------------------------------------------------------------------------------------------------------|
-| 1. Input — mod YAML       | safe        | `<mod>/<mod>.yaml` in the mod repo folder (`workshop/<mod>/`), `based_on` + `info` (from `template/mod-input.yaml`)                              |
-| 2. Sources                | safe        | readable sources (for a forked mod, unpacked from the museum archive) — **separate process/tools** (consumed here)            |
+| 1. Input — mod YAML       | safe        | `<mod>/<mod>.yaml` in the mod repo folder (`workshop/<mod>/`), `based_on` + `info` + `changes` (from `template/mod-input.yaml`)                              |
+| 2. Sources                | safe        | `mod/` + readable `src/` produced by `tools/unpack_mod.py` (this workflow consumes them)            |
+| 2b. Assemble              | safe        | `mod/` from `src/` by `tools/build_mod.py`: ModuleInfo + signed `.dat`            |
 | 3. Card + license          | safe        | `README.md` from `template/mod-card.md` (`based_on` + `info`, `## 🔗 Based on` when `based_on` non-empty, CC BY-NC-SA 4.0 badge) + `LICENSE` from `template/LICENSE` (plain-text attribution + full legal code). For an existing dev repo the card is kept as-is — only the missing `LICENSE` is written |
 | 4. Local repository       | safe        | repo folder: `README.md`, `LICENSE`, `<mod>.yaml` (already the single source in the folder), `.gitignore` (an existing dev repo keeps its own `.gitignore` — only missing files are written)                                             |
 | 5. Local git repository   | safe        | `git init` + initial commit (so `gh repo create --source --push` has something to push). For an existing dev repo init is skipped and only the newly added `LICENSE` is committed                   |
 | 6. Showcase — local update| safe        | `.csv` row + main page rebuilt in `workshop/.github` (local, not yet pushed)                               |
-| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; `mod/` packaged into `<mod>.zip` under its own path in the game tree (`Mods/<SectionEng>/<mod>/…`, `Miscellaneous` for a workshop mod); `gh release create v2.0.0` with that archive |
+| 7. Publish mod repo via gh| side-effect | `gh repo create space-rangers-mods-workshop/<mod> --public --source <out-dir> --push`; for an already-published repo the create step is skipped and the branch is pushed instead (subsequent releases); `mod/` packaged into `<mod>.zip` under its own path in the game tree (`Mods/<SectionEng>/<mod>/…`, `Miscellaneous` for a workshop mod); `gh release create <version>` with that archive and optional notes (`--notes`/`--notes-file`) |
 | 8. Showcase — commit/push | side-effect | commit + push `mods.csv`, `README.md` and `profile/README.md` in `workshop/.github` (only after step 7 succeeds)                |
 
 ## Showcase — `.csv` → main page

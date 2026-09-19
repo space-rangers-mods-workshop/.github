@@ -1,37 +1,46 @@
-# Empty YAML template for a workshop mod. Copy to <mod>/<mod>.yaml (the mod repo folder) and fill in.
+# Empty YAML template for a workshop mod.
+# Copy to <mod>/<mod>.yaml — inside the mod's own repo folder. This YAML is the
+# single source the tools read: generate_card.py, generate_instruction.py,
+# build_mod.py and publish_mod.py. Fill every <...> in.
+#
+# HARD RULES: info.Priority = 1, info.Section = Разное, info.SectionEng = Miscellaneous
+# (the workshop publishes every mod under the Miscellaneous section) — never change these.
+#
 # Schema in design.md, section "Input: YAML per mod".
 
-mod: <id>   # id = mod repo folder in the workshop
+mod: <mod>   # id = the mod's repo folder in the workshop
 
-# public — rendered in the card README.md
-# all public text values are English, except proper names (authors, verbatim resource names)
+# public — keys mirror ModuleInfo.txt; rendered into mod/ModuleInfo.txt by build_mod.py
+# and into the card README.md by generate_card.py. Public text is English, except
+# proper names (authors, verbatim in-game text), which stay as they are.
 info:
-  name: <mod name>
-  author: <the WHOLE author list at once>   # input document, manual: exhibit authors + who assembled this version
-  summary: <short description>
-  description: <full description>
+  Name: <mod name>
+  Author: "<the whole author list>"   # source authors + everyone who assembled this version
+  Conflict: ""                        # comma-separated ModuleInfo names, or ""
+  Dependence: ""                      # comma-separated ModuleInfo names, or "" (empty -> no Dependence line)
+  Priority: 1                         # hard rule
+  Section: Разное                     # hard rule
+  SectionEng: Miscellaneous           # hard rule — the deploy folder under Mods\
+  Languages: Rus,Eng
+  SmallDescription: >-
+    <short Russian description>
+  SmallDescriptionEng: >-
+    <short English description>
+  FullDescription: >-
+    <full Russian description>
+  FullDescriptionEng: >-
+    <full English description>
+  # nexusmods: "https://www.nexusmods.com/..."   # optional; the card shows it when present
 
-# public — how the readable sources were produced, rendered in the card README.md
-# ordered chain of steps: how the museum archive was unpacked, with what it was decompiled,
-# how the sources were obtained; if the mod is new (no museum sources) — an EMPTY array
-# ref/note/date fields are always present but may be left empty; note — English, except verbatim
-# resource names (tools, Discord channels, mod titles), which stay in their original spelling;
-# values starting with # go in quotes ("#tag")
-acquire:
-  - ref: <url>            # working link for this step
-    note: <step description>
-    date: YYYY-MM-DD      # date of the source / step (may be left empty)
-  - ref: <url>
-    note: <step description>
-    date: YYYY-MM-DD
-
-# internal — input for the build tool, NOT shown on the card
-# museum exhibits this mod is based on — OPTIONAL: may be absent/empty if the mod is made
-# without museum sources (not every workshop mod is derived from the museum)
+# public — the sources this mod is based on / derived from (museum exhibits, source
+# packs); may be empty. Rendered verbatim in the card's "## 🔗 Based on" section.
 based_on:
-  - museum_mod: <exhibit1>   # museum exhibit this mod is forked from
-    museum_release: v1.0.0   # release of this exhibit the fork is based on
-  - museum_mod: <exhibit2>
-    museum_release: v1.0.0
-  # readable sources are produced from these museum archives by a separate process
-  # (unpack/decompile) — out of scope of this iteration
+  - source: <url>
+    note: <short label — may be omitted>
+
+# public — what this workshop edition changed relative to its sources; linked from the
+# card README.md. Short bullets, one change per line; may be empty for a mod unpacked
+# as-is. The reproducible commands/paths live in the mod's build scripts and patches/,
+# not here.
+changes:
+  - <change>

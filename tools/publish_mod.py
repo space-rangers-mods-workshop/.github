@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import re
 import subprocess
 import sys
 import zipfile
@@ -61,9 +62,11 @@ import yaml
 from generate_card import strip_conditional_blocks
 
 TOOL_NAME = "publish_mod.py"
-TOOL_VERSION = "1.3.0"
+TOOL_VERSION = "1.4.0"
 DEFAULT_ORG = "space-rangers-mods-workshop"
 RELEASE_VERSION = "v2.0.0"  # first workshop release; subsequent releases are bumped upward
+# the game's inline <color=...> markup is dropped from the repo description
+_COLOR_TAG_RE = re.compile(r"</?color(?:=[^>]*)?>", re.IGNORECASE)
 # A workshop mod is not tied to the section of the pack it came from — the yaml's
 # info.SectionEng (Miscellaneous) is where it deploys, the same value the card prints.
 WORKSHOP_SECTION = "Miscellaneous"
@@ -162,9 +165,15 @@ def main() -> None:
     parser.add_argument("--out-dir", help="local repository folder for the mod (default: the mod YAML's own folder — yaml_path.parent)")
     parser.add_argument("--org", default=DEFAULT_ORG, help=f"workshop org (default: {DEFAULT_ORG})")
     parser.add_argument("--version", default=RELEASE_VERSION, help=f"release version (default: {RELEASE_VERSION}, the first release; bump for subsequent releases)")
+    parser.add_argument("--notes", default="", help="release notes (markdown); empty = no notes")
+    parser.add_argument("--notes-file", help="read the release notes from a file (overrides --notes)")
     parser.add_argument("--no-publish", action="store_true", help="run card+license -> repo folder -> local git init -> showcase local update only (no gh, no remote, no showcase push)")
     parser.add_argument("--log", help="path to the pipeline log file (default: <out-dir>/publish.log)")
     args = parser.parse_args()
+
+    notes = args.notes
+    if args.notes_file:
+        notes = Path(args.notes_file).read_text(encoding="utf-8")
 
     with open(args.yaml_path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
@@ -174,7 +183,7 @@ def main() -> None:
         raise SystemExit(1)
     info = data.get("info") or {}
     author = (info.get("Author") or "").strip()
-    summary = (info.get("SmallDescriptionEng") or "").strip()
+    summary = _COLOR_TAG_RE.sub("", info.get("SmallDescriptionEng") or "").strip()
     section = (info.get("SectionEng") or "").strip() or WORKSHOP_SECTION
     based_on = data.get("based_on") or []
 
@@ -222,7 +231,10 @@ def main() -> None:
     #    ``.gitignore``, so it is only written when missing; the pipeline log
     #    (``.log``) is excluded either way.
     if not (out_dir / ".gitignore").exists():
-        (out_dir / ".gitignore").write_text("*.log\n", encoding="utf-8")
+        (out_dir / ".gitignore").write_text(
+            "# build/package artifacts\n*.zip\n*.log\n\n# scratch\ntmp/\n.ruff_cache/\n",
+            encoding="utf-8",
+        )
 
     required = ["README.md", "LICENSE", Path(args.yaml_path).name, ".gitignore"]
     missing = [name for name in required if not (out_dir / name).exists()]
@@ -238,7 +250,7 @@ def main() -> None:
     #    repo on ``main``, so init is skipped and only the newly added LICENSE
     #    is committed (a no-op commit would fail with exit 1).
     if not is_existing_repo:
-        run_step(log_path, "git-init", ["git", "-C", str(out_dir), "init"])
+        run_step(log_path, "git-init", ["git", "-C", str(out_dir), "init", "-b", "main"])
     run_step(log_path, "git-add", ["git", "-C", str(out_dir), "add", "-A"])
     staged = subprocess.run(
         ["git", "-C", str(out_dir), "diff", "--cached", "--quiet"],
@@ -269,11 +281,24 @@ def main() -> None:
     #    summary (from the input YAML's ``info.SmallDescriptionEng``) becomes
     #    the repo description, so the new repo is not an empty "No description"
     #    placeholder. GitHub caps descriptions at 350 chars, so the summary is
-    #    truncated to fit.
-    create_cmd = ["gh", "repo", "create", f"{args.org}/{mod}", "--public", "--source", str(out_dir), "--push"]
-    if summary:
-        create_cmd += ["--description", summary[:350]]
-    run_step(log_path, "gh-create-repo", create_cmd)
+    #    truncated to fit. When the repo already exists (a subsequent release)
+    #    the create step is skipped and the current branch is pushed instead.
+    repo_exists = subprocess.run(
+        ["gh", "repo", "view", f"{args.org}/{mod}", "--json", "name"],
+        check=False, capture_output=True, text=True,
+    ).returncode == 0
+    if repo_exists:
+        remotes = subprocess.run(
+            ["git", "-C", str(out_dir), "remote"], check=False, capture_output=True, text=True,
+        ).stdout.split()
+        if "origin" not in remotes:
+            run_step(log_path, "git-remote", ["git", "-C", str(out_dir), "remote", "add", "origin", f"git@github.com:{args.org}/{mod}.git"])
+        run_step(log_path, "git-push", ["git", "-C", str(out_dir), "push", "-u", "origin", "HEAD"])
+    else:
+        create_cmd = ["gh", "repo", "create", f"{args.org}/{mod}", "--public", "--source", str(out_dir), "--push"]
+        if summary:
+            create_cmd += ["--description", summary[:350]]
+        run_step(log_path, "gh-create-repo", create_cmd)
     #    Package the assembled ``mod/`` folder into the release archive first
     #    (the mod's own path in the game tree — ``Mods/<SectionEng>/<mod>/`` — so
     #    it unpacks straight into the game folder), then attach
@@ -284,11 +309,11 @@ def main() -> None:
     zip_path = build_mod_archive(out_dir, mod, section)
     log_write(log_path, f"OK archive: {zip_path}")
     print(f"[archive] {zip_path}")
-    run_step(
-        log_path,
-        "gh-release",
-        ["gh", "release", "create", args.version, "--repo", f"{args.org}/{mod}", "--title", mod, str(zip_path)],
-    )
+    release_cmd = ["gh", "release", "create", args.version, "--repo", f"{args.org}/{mod}", "--title", mod]
+    if notes:
+        release_cmd += ["--notes", notes]
+    release_cmd.append(str(zip_path))
+    run_step(log_path, "gh-release", release_cmd)
 
     # 8. Showcase — commit & push. Side-effect step: the updated ``mods.csv``
     #    and main page (step 6) point to the mod repo, which now exists after

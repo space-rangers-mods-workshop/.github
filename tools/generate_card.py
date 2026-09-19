@@ -57,6 +57,12 @@ TEMPLATE_PATH = TOOLS_DIR.parent / "template" / "mod-card.md"
 
 _BLOCK_OPEN_RE = re.compile(r"\{\{#(\w+)\}\}")
 _BLOCK_CLOSE_RE = re.compile(r"\{\{/(\w+)\}\}")
+# the game's inline <color=...> markup is dropped — the card is GitHub-facing
+_COLOR_TAG_RE = re.compile(r"</?color(?:=[^>]*)?>", re.IGNORECASE)
+
+
+def strip_color_tags(text: str) -> str:
+    return _COLOR_TAG_RE.sub("", text).strip()
 
 
 def strip_conditional_blocks(template: str, flags: dict[str, bool]) -> str:
@@ -175,8 +181,8 @@ def main() -> None:
 
     info = data.get("info") or {}
     author = (info.get("Author") or "").strip()
-    short_desc = (info.get("SmallDescriptionEng") or "").strip()
-    full_desc = (info.get("FullDescriptionEng") or "").strip()
+    short_desc = strip_color_tags(info.get("SmallDescriptionEng") or "")
+    full_desc = strip_color_tags(info.get("FullDescriptionEng") or "")
     nexusmods = (info.get("nexusmods") or "").strip()
     section = (info.get("SectionEng") or "").strip()
     based_on = data.get("based_on") or []

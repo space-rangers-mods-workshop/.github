@@ -55,6 +55,11 @@ TEMPLATE_PATH = SHOWCASE_DIR / "template" / "showcase-readme.md"
 PROFILE_README_PATH = SHOWCASE_DIR / "profile" / "README.md"
 
 AUTHOR_RE = re.compile(r"^\*\s+\*\*Author:\*\*\s*(.*)$")
+_COLOR_TAG_RE = re.compile(r"</?color(?:=[^>]*)?>", re.IGNORECASE)
+
+
+def strip_color_tags(text: str) -> str:
+    return _COLOR_TAG_RE.sub("", text).strip()
 
 
 def _col(header: list[str], name: str) -> int:
@@ -109,7 +114,7 @@ def read_card_mod_summary(mod: str) -> tuple[str, str]:
             if stripped.startswith("#") or re.fullmatch(r"([-*_])\1{2,}", stripped):
                 break  # reached the next section (e.g. "## " heading or a "---" rule)
             summary_parts.append(stripped)
-    return author, " ".join(summary_parts)
+    return author, strip_color_tags(" ".join(summary_parts))
 
 
 def build_rows_block(header: list[str], rows: list[list[str]]) -> str:
