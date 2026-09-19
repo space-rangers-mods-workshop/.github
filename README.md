@@ -15,6 +15,7 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 | Mod | Author | Mod | Summary |
 |-----|--------|-----|---------|
 | AMod_Spacejunk | LEOPARD, Huk, denballakh, ringill | [AMod_Spacejunk](https://github.com/space-rangers-mods-workshop/AMod_Spacejunk) | Spacejunk viewer panel |
+| AMod_MapMarker | Huk, Xenomorphchyma, ringill | [AMod_MapMarker](https://github.com/space-rangers-mods-workshop/AMod_MapMarker) | Adds the ability to place a marker on a galaxy-map system |
 
 ## ⚖️ License
 
