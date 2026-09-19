@@ -16,6 +16,7 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 |-----|--------|-----|---------|
 | AMod_Spacejunk | LEOPARD, Huk, denballakh, ringill | [AMod_Spacejunk](https://github.com/space-rangers-mods-workshop/AMod_Spacejunk) | Spacejunk viewer panel |
 | AMod_MapMarker | Huk, Xenomorphchyma, ringill | [AMod_MapMarker](https://github.com/space-rangers-mods-workshop/AMod_MapMarker) | Adds the ability to place a marker on a galaxy-map system |
+| DenSettingsControl | denball, ringill | [DenSettingsControl](https://github.com/space-rangers-mods-workshop/DenSettingsControl) | <color=20,250,20>Safe to use</color> Adds a panel for editing settings of game |
 
 ## ⚖️ License
 
