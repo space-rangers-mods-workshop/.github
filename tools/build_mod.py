@@ -33,10 +33,18 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
 
-import rangers.dat as d
-import yaml
+# the vendored ranger-tools checkout lives in the workspace root (git-ignored)
+for _parent in Path(__file__).resolve().parents:
+    _candidate = _parent / 'tools' / 'ranger-tools'
+    if _candidate.is_dir():
+        sys.path.insert(0, str(_candidate))
+        break
+
+import rangers.dat as d  # noqa: E402  (sys.path is fixed above)
+import yaml  # noqa: E402
 
 TOOL_NAME = "build_mod.py"
 TOOL_VERSION = "1.0.0"
