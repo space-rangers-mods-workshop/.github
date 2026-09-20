@@ -1,7 +1,7 @@
 """Unpack any mod into a workshop layout: ``mod/`` (byte-exact) + readable ``src/``.
 
-The single generic replacement for a per-mod unpack routine. It drives the
-SRHD-XenoModKit CLI and accepts either source kind, auto-detected:
+The single generic replacement for a per-mod unpack routine. It accepts either
+source kind, auto-detected:
 
   * a pack tree — a folder holding ``Mods/<Section>/<Mod>`` (e.g. an unpacked
     release under ``origin_artefact/unpacked/<pack>/``) or the mod folder itself;
@@ -13,10 +13,16 @@ Steps
 1. resolve the mod folder (the one with ``ModuleInfo.txt``);
 2. stage it byte-exact into ``<out>/mod`` (``srhd.py stage``);
 3. decode every ``mod/CFG/**/*.dat`` into readable BlockPar text under ``src/``
-   (``srhd.py dat decode``); for a ``Lang.dat`` that trips the toolkit's
-   ``Ошибка: Пустое имя блока`` bug it falls back to the BlockParEditor CLI;
+   with the vendored **ranger-tools** codec (``rangers.dat``, fmt picked by file
+   name) — it also verifies the file's stored content hash, so a success means
+   the mod's own ``.dat`` is self-consistent; a file it refuses (a hash the mod
+   author got wrong, e.g. ``ExpPanel``'s ``Main.dat``) is decoded by
+   ``srhd.py dat decode`` instead;
 4. decompile every ``mod/DATA/Script/*.scr`` into an RScript project under
-   ``src/`` (``srhd.py script decompile``).
+   ``src/`` (``srhd.py script decompile`` — of the two available decoders the
+   toolkit recovers the wider range: 9 of 9 mod scripts here against 7 of 9 for
+   ``rangers.scr``, which refuses the older format 6, and it reports whether the
+   SCR -> RSON -> SCR round trip passed).
 
 ``mod/DATA/`` binary resources are staged into ``mod/`` (they are package input,
 not sources). Mod-specific adaptations (bundling resources from another mod,
@@ -40,12 +46,35 @@ import zipfile
 from pathlib import Path
 
 TOOL_NAME = "unpack_mod.py"
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"
 
 TOOLS_DIR = Path(__file__).resolve().parent
 WORKSHOP_DIR = TOOLS_DIR.parents[1]           # workshop/
-DEFAULT_XENO_DIR = WORKSHOP_DIR / "SRHD-XenoModKit"
-DEFAULT_BLOCKPAR = WORKSHOP_DIR / "BlockParEditor" / "BlockParEditor.exe"
+ROOT_DIR = TOOLS_DIR.parents[2]               # workspace root
+DEFAULT_XENO_DIR = ROOT_DIR / "tools" / "SRHD-XenoModKit"
+
+# the vendored ranger-tools checkout (its upstream is external, git-ignored)
+sys.path.insert(0, str(ROOT_DIR / "tools" / "ranger-tools"))
+import rangers.dat  # noqa: E402  (sys.path is fixed above)
+
+# the engine's BlockPar flavours, by file name — auto-detection is unreliable
+RANGER_FMT = {"main": "HDMain", "cachedata": "HDCache", "lang": "HDMain"}
+
+
+def decode_dat(path: Path, out_txt: Path) -> bool:
+    """Decode one .dat with ranger-tools; False when it does not accept the file.
+
+    ``to_txt`` truncates the output before it renders the tree, so a failure can
+    leave an empty file behind — remove it, or the toolkit fallback (which
+    refuses to overwrite) cannot write its own result.
+    """
+    fmt = RANGER_FMT.get(path.stem.casefold())
+    try:
+        rangers.dat.DAT.from_dat(path, fmt=fmt).to_txt(out_txt)
+    except Exception:  # noqa: BLE001  (not BlockPar, or a mismatched content hash)
+        out_txt.unlink(missing_ok=True)
+        return False
+    return True
 
 
 def run(argv: list[str]) -> int:
@@ -98,12 +127,10 @@ def main() -> None:
     parser.add_argument("--mod", required=True, help="mod name (the repo folder id)")
     parser.add_argument("--out-dir", help="workshop mod folder (default: workshop/<mod>)")
     parser.add_argument("--xeno-dir", default=str(DEFAULT_XENO_DIR), help=f"SRHD-XenoModKit folder (default: {DEFAULT_XENO_DIR})")
-    parser.add_argument("--blockpar", default=str(DEFAULT_BLOCKPAR), help="BlockParEditor.exe used as the Lang.dat fallback")
     args = parser.parse_args()
 
     xeno = Path(args.xeno_dir)
     srhd = xeno / "srhd.py"
-    blockpar = Path(args.blockpar)
     out_dir = Path(args.out_dir) if args.out_dir else WORKSHOP_DIR / args.mod
     mod_dir, tmp = resolve_mod_source(Path(args.source), args.mod)
     src_dir = out_dir / "src"
@@ -121,19 +148,17 @@ def main() -> None:
         print("ERROR: stage failed")
         raise SystemExit(1)
 
-    # 2. decode every CFG .dat into src/
+    # 2. decode every CFG .dat into src/ — ranger-tools first, the toolkit for what it refuses
     src_dir.mkdir(parents=True, exist_ok=True)
     cfg_dir = out_dir / "mod" / "CFG"
     for cfg_dat in sorted(cfg_dir.rglob("*.dat")) if cfg_dir.is_dir() else []:
         out_txt = src_dir / f"{decode_target(cfg_dat, cfg_dir)}.txt"
-        if run([sys.executable, "-B", srhd, "dat", "decode", cfg_dat, out_txt]) == 0:
+        if decode_dat(cfg_dat, out_txt):
+            print(f"  {cfg_dat.relative_to(cfg_dir)} -> {out_txt.name} (ranger-tools)")
             continue
-        print(f"  ! dat decode failed for {cfg_dat.name}; trying BlockParEditor")
-        if not blockpar.is_file():
-            print(f"ERROR: {cfg_dat.name} needs the BlockParEditor fallback, not found: {blockpar}")
-            raise SystemExit(1)
-        if run([blockpar, "--cli", "--convert", cfg_dat, out_txt]) != 0:
-            print(f"ERROR: BlockParEditor could not convert {cfg_dat.name}")
+        print(f"  ! ranger-tools refused {cfg_dat.name}; decoding with SRHD-XenoModKit")
+        if run([sys.executable, "-B", srhd, "dat", "decode", cfg_dat, out_txt]) != 0:
+            print(f"ERROR: could not decode {cfg_dat.name}")
             raise SystemExit(1)
 
     # 3. decompile every scenario .scr into src/

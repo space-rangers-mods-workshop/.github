@@ -88,9 +88,11 @@ Two tools replace the old per-mod `build_<mod>.py` script:
 
 - **`tools/unpack_mod.py`** — unpack any mod into `mod/` + readable `src/`. Accepts a pack tree
   (`Mods/<Section>/<Mod>`, e.g. under `origin_artefact/unpacked/<pack>/`), a museum release `.zip`,
-  or the mod folder itself; stages `mod/` byte-exact, decodes every `CFG/*.dat` into `src/`
-  (falling back to the BlockParEditor CLI for a `Lang.dat` that trips the toolkit's
-  `Ошибка: Пустое имя блока` bug), and decompiles `DATA/Script/*.scr`:
+  or the mod folder itself; stages `mod/` byte-exact, decodes every `CFG/*.dat` into `src/` with the
+  vendored **ranger-tools** codec (`rangers.dat`, variant picked by file name; it also verifies the
+  file's stored content hash, and a file it refuses — e.g. `ExpPanel`'s `Main.dat` — is decoded by
+  `srhd.py dat decode` instead), and decompiles `DATA/Script/*.scr` with `srhd.py script decompile`
+  (the wider-coverage decoder of the two, and it reports the round-trip verdict):
   ```
   python tools/unpack_mod.py <pack-tree | museum.zip | mod-folder> --mod <Mod>
   ```
