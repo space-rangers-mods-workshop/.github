@@ -22,7 +22,12 @@ Steps
    ``src/`` (``srhd.py script decompile`` — of the two available decoders the
    toolkit recovers the wider range: 9 of 9 mod scripts here against 7 of 9 for
    ``rangers.scr``, which refuses the older format 6, and it reports whether the
-   SCR -> RSON -> SCR round trip passed).
+   SCR -> RSON -> SCR round trip passed). Its two non-zero outcomes are handled
+   rather than ignored: exit 2 means the copy was recovered but not verified, and
+   it is kept (``--keep-unverified``) with a note; exit 1 means RScript itself
+   failed and the step is retried with ``--fallback-without-lang``, which drops
+   the dialog import but still round-trip-checks the result. Either way a
+   readable ``<Mod>.rson`` lands in ``src/``.
 
 ``mod/DATA/`` binary resources are staged into ``mod/`` (they are package input,
 not sources). Mod-specific adaptations (bundling resources from another mod,
@@ -151,6 +156,7 @@ def main() -> None:
     # 2. decode every CFG .dat into src/ — ranger-tools first, the toolkit for what it refuses
     src_dir.mkdir(parents=True, exist_ok=True)
     cfg_dir = out_dir / "mod" / "CFG"
+    undecoded: list[str] = []
     for cfg_dat in sorted(cfg_dir.rglob("*.dat")) if cfg_dir.is_dir() else []:
         out_txt = src_dir / f"{decode_target(cfg_dat, cfg_dir)}.txt"
         if decode_dat(cfg_dat, out_txt):
@@ -158,22 +164,51 @@ def main() -> None:
             continue
         print(f"  ! ranger-tools refused {cfg_dat.name}; decoding with SRHD-XenoModKit")
         if run([sys.executable, "-B", srhd, "dat", "decode", cfg_dat, out_txt]) != 0:
-            print(f"ERROR: could not decode {cfg_dat.name}")
-            raise SystemExit(1)
+            # One odd file must not cost the whole unpack (the toolkit's own decode can need
+            # tools/BlockParEditor for it); name it at the end instead.
+            out_txt.unlink(missing_ok=True)
+            undecoded.append(cfg_dat.relative_to(cfg_dir).as_posix())
 
     # 3. decompile every scenario .scr into src/
+    #    The toolkit reports exit 2 when it recovered the script but the SCR -> RSON -> SCR
+    #    round trip failed and the copy was kept unverified (--keep-unverified), and exits 1
+    #    when RScript itself failed (e.g. a Lang.dat it cannot import) — that one is retried
+    #    with --fallback-without-lang, which drops the dialog import but still verifies.
     script_dir = out_dir / "mod" / "DATA" / "Script"
     for scr in sorted(script_dir.glob("*.scr")) if script_dir.is_dir() else []:
         rson = src_dir / f"{scr.stem}.rson"
         lang_dat = cfg_dir / "Rus" / "Lang.dat"
-        argv = [sys.executable, "-B", srhd, "script", "decompile", scr, rson]
+        base = [sys.executable, "-B", srhd, "script", "decompile"]
         if lang_dat.is_file():
-            argv += ["--lang-dat", lang_dat]
-        run(argv)
+            base += ["--lang-dat", lang_dat]
+        code = 1
+        with tempfile.TemporaryDirectory() as staging:
+            # Only a recovered-but-unverified copy goes to the staging path: a
+            # round-trip-checked RSON lands on its canonical path directly (the project
+            # file records the path it was written to, so it must be the real one).
+            unverified = Path(staging) / rson.name
+            for extra in ([], ["--fallback-without-lang"]):
+                code = run(base + [scr, rson, "--keep-unverified", unverified, "--overwrite", *extra])
+                if code in (0, 2):
+                    break
+                rson.unlink(missing_ok=True)
+                print(f"  {scr.name}: RScript failed; retrying without the dialog import")
+            if code == 2:
+                unverified.replace(rson)
+        if code not in (0, 2):
+            rson.unlink(missing_ok=True)
+            print(f"ERROR: script decompile failed for {scr.name}")
+            raise SystemExit(1)
+        print(f"  {scr.name} -> {rson.name} ({'verified' if code == 0 else 'unverified, round trip failed'})")
 
     if tmp is not None:
         tmp.cleanup()
-    print(f"unpack complete: {out_dir}")
+    if undecoded:
+        print(f"unpack complete (with gaps): {out_dir}")
+        for name in undecoded:
+            print(f"  ! no source text for CFG/{name}")
+    else:
+        print(f"unpack complete: {out_dir}")
 
 
 if __name__ == "__main__":
