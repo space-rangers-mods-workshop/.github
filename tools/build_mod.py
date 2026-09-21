@@ -19,6 +19,9 @@ What it does
        src/Lang*.txt       -> mod/CFG/<Lang>/Lang.dat fmt=HDMain   (one source,
                               emitted for every language declared in info.Languages)
 
+   A source kind the mod does not ship is skipped, not required — a ``Lang``-only
+   mod has neither ``Main`` nor ``CacheData``.
+
 3. verifies every ``mod/CFG/**/*.dat`` carries the engine signature;
 4. checks that every ``Mods\\<section>\\<mod>\\...`` path the sources reference
    resolves to a file inside ``mod/`` (catches a missing bundled resource), and
@@ -104,13 +107,9 @@ def discover_sources(src_dir: Path, languages: list[str]):
 
     main_src = next((f for f in files if f.stem.startswith("Main")), None)
     cache_src = next((f for f in files if f.stem.startswith("CacheData")), None)
-    if main_src is None:
-        errors.append("no src/Main*.txt source")
-    else:
+    if main_src is not None:
         entries.append((main_src, "CFG/Main.dat", FMT_MAIN))
-    if cache_src is None:
-        errors.append("no src/CacheData*.txt source")
-    else:
+    if cache_src is not None:
         entries.append((cache_src, "CFG/CacheData.dat", FMT_CACHEDATA))
 
     per_lang: dict[str, Path] = {}
@@ -131,6 +130,8 @@ def discover_sources(src_dir: Path, languages: list[str]):
             errors.append(f"no source for language {lang}")
         else:
             entries.append((src, f"CFG/{lang}/Lang.dat", FMT_LANG))
+    if not entries:
+        errors.append("nothing to build: no src/*.txt matched Main/CacheData/Lang")
     return entries, errors
 
 
