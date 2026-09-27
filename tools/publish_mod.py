@@ -192,6 +192,20 @@ def main() -> None:
     section = (info.get("SectionEng") or "").strip() or WORKSHOP_SECTION
     based_on = data.get("based_on") or []
 
+    # Release notes default to the mod's own change list: a release without them
+    # tells a reader nothing. `--notes`/`--notes-file` still override.
+    if not notes.strip():
+        changes = [str(item).strip() for item in (data.get("changes") or []) if str(item).strip()]
+        lines = [f"{mod} {args.version}", ""]
+        if changes:
+            lines.append("Changes in this edition, relative to the source:")
+            lines.append("")
+            lines += [f"- {change}" for change in changes]
+        else:
+            lines.append("Workshop build of the mod — see the README for what it changes.")
+        lines += ["", f"Full card: https://github.com/{args.org}/{mod}"]
+        notes = "\n".join(lines)
+
     # Default out-dir: the mod YAML's own folder. The YAML is the single source
     # and already lives inside the mod repo folder, so that folder IS the repo —
     # nothing is copied in, and the repo is never nested inside the showcase.
