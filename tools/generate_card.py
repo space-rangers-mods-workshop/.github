@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -165,6 +166,15 @@ def render_card(mod: str, files_block: str, author: str,
 
 
 def main() -> None:
+    # Emit UTF-8 whenever the output is captured/redirected. A parent that reads
+    # this process through subprocess(..., text=True) decodes stdout as UTF-8;
+    # the progress lines carry the author's Cyrillic and the "·" separator, which
+    # the locale codec would otherwise encode as bytes UTF-8 cannot decode.
+    if not sys.stdout.isatty():
+        sys.stdout.reconfigure(encoding="utf-8")
+    if not sys.stderr.isatty():
+        sys.stderr.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--yaml", required=True, help="path to the mod YAML")
     parser.add_argument("--manifest", help="path to the mod .manifest.json (optional — files section left empty without it)")

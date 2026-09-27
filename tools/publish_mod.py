@@ -46,6 +46,10 @@ Usage
 
     # local-only run (no gh, no remote):
     python publish_mod.py ../../AMod_Spacejunk/AMod_Spacejunk.yaml --no-publish
+
+    # publish the repo + release but leave the showcase alone (steps 6 and 8
+    # skipped — useful when the mod should appear on GitHub before the showcase):
+    python publish_mod.py ../../ExpTC/ExpTC.yaml --no-showcase
 """
 from __future__ import annotations
 
@@ -168,6 +172,7 @@ def main() -> None:
     parser.add_argument("--notes", default="", help="release notes (markdown); empty = no notes")
     parser.add_argument("--notes-file", help="read the release notes from a file (overrides --notes)")
     parser.add_argument("--no-publish", action="store_true", help="run card+license -> repo folder -> local git init -> showcase local update only (no gh, no remote, no showcase push)")
+    parser.add_argument("--no-showcase", action="store_true", help="skip steps 6 and 8 — do not touch the showcase mods.csv/README, locally or on the remote")
     parser.add_argument("--log", help="path to the pipeline log file (default: <out-dir>/publish.log)")
     args = parser.parse_args()
 
@@ -265,12 +270,17 @@ def main() -> None:
     # 6. Showcase — local update. Safe, local step: append the mod to the
     #    workshop mod list ``mods.csv`` and rebuild the showcase main page in
     #    ``workshop/.github`` — nothing is pushed yet. The pushed page (step 8)
-    #    will link to the mod repo, which only exists after step 7.
-    run_step(
-        log_path,
-        "showcase-local",
-        [sys.executable, str(TOOLS_DIR / "update_showcase.py"), "--mod", mod],
-    )
+    #    will link to the mod repo, which only exists after step 7. Skipped with
+    #    ``--no-showcase``.
+    if args.no_showcase:
+        log_write(log_path, "showcase-local: skipped (--no-showcase)")
+        print("[showcase-local] skipped (--no-showcase)")
+    else:
+        run_step(
+            log_path,
+            "showcase-local",
+            [sys.executable, str(TOOLS_DIR / "update_showcase.py"), "--mod", mod],
+        )
 
     if args.no_publish:
         log_write(log_path, "DONE (no-publish): chain stopped after local git repo + showcase local update")
@@ -321,22 +331,26 @@ def main() -> None:
     #    ``update_showcase`` is idempotent — on a re-run of an already-listed
     #    mod there is nothing staged, so commit/push are skipped (a no-op
     #    commit would fail with exit 1). ``profile/README.md`` is staged too so
-    #    the org profile reflects the new mod.
-    run_step(
-        log_path,
-        "showcase-add",
-        ["git", "-C", str(SHOWCASE_DIR), "add", "mods.csv", "README.md", "profile/README.md"],
-    )
-    staged = subprocess.run(
-        ["git", "-C", str(SHOWCASE_DIR), "diff", "--cached", "--quiet"],
-        check=False, capture_output=True, text=True,
-    )
-    if staged.returncode != 0:
-        run_step(log_path, "showcase-commit", ["git", "-C", str(SHOWCASE_DIR), "commit", "-m", f"showcase: add {mod}"])
-        run_step(log_path, "showcase-push", ["git", "-C", str(SHOWCASE_DIR), "push"])
+    #    the org profile reflects the new mod. Skipped with ``--no-showcase``.
+    if args.no_showcase:
+        log_write(log_path, "showcase-add: skipped (--no-showcase)")
+        print("[showcase-add] skipped (--no-showcase)")
     else:
-        log_write(log_path, "showcase: no changes — already up to date")
-        print("showcase: no changes — already up to date")
+        run_step(
+            log_path,
+            "showcase-add",
+            ["git", "-C", str(SHOWCASE_DIR), "add", "mods.csv", "README.md", "profile/README.md"],
+        )
+        staged = subprocess.run(
+            ["git", "-C", str(SHOWCASE_DIR), "diff", "--cached", "--quiet"],
+            check=False, capture_output=True, text=True,
+        )
+        if staged.returncode != 0:
+            run_step(log_path, "showcase-commit", ["git", "-C", str(SHOWCASE_DIR), "commit", "-m", f"showcase: add {mod}"])
+            run_step(log_path, "showcase-push", ["git", "-C", str(SHOWCASE_DIR), "push"])
+        else:
+            log_write(log_path, "showcase: no changes — already up to date")
+            print("showcase: no changes — already up to date")
 
     log_write(log_path, "DONE publish complete")
     print(f"publish {mod}: done")
