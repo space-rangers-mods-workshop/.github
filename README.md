@@ -21,6 +21,7 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 | ExpTC | Huk, Klaxons, 100kg, Ковбой Билл, ringill | [ExpTC](https://github.com/space-rangers-mods-workshop/ExpTC) | Adds a new base type - Technology Center and some new weapon akrins |
 | ExpRepair | uhanich, Mik, Huk, Klaxons, Alex Lester, ringill | [ExpRepair](https://github.com/space-rangers-mods-workshop/ExpRepair) | Adds additional repair options at Research Stations, Military Bases and Pirate Bases, and also allows you to carry out full repairs at a Technology Center |
 | BlockTextQ | Klaxons, noname, ringill | [BlockTextQ](https://github.com/space-rangers-mods-workshop/BlockTextQ) | Disables the issuance of text quests as government missions (Can be enabled/disabled at any time during a game) |
+| ExpRC | Huk, Klaxons, ringill | [ExpRC](https://github.com/space-rangers-mods-workshop/ExpRC) | Expands the capabilities of Ranger Centers (The mod can be enabled/disabled during a game) |
 
 ## ⚖️ License
 
