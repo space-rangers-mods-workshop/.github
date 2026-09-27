@@ -19,6 +19,7 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 | DenSettingsControl | denball, ringill | [DenSettingsControl](https://github.com/space-rangers-mods-workshop/DenSettingsControl) | Safe to use Adds a panel for editing settings of game |
 | ExpBK | Huk, Klaxons, ringill | [ExpBK](https://github.com/space-rangers-mods-workshop/ExpBK) | Expands business center capabilities |
 | ExpTC | Huk, Klaxons, 100kg, Ковбой Билл, ringill | [ExpTC](https://github.com/space-rangers-mods-workshop/ExpTC) | Adds a new base type - Technology Center and some new weapon akrins |
+| ExpRepair | uhanich, Mik, Huk, Klaxons, Alex Lester, ringill | [ExpRepair](https://github.com/space-rangers-mods-workshop/ExpRepair) | Adds additional repair options at Research Stations, Military Bases and Pirate Bases, and also allows you to carry out full repairs at a Technology Center |
 
 ## ⚖️ License
 
