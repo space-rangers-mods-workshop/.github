@@ -17,6 +17,8 @@ Original, unmodified mod versions are preserved in the [space-rangers-mods-museu
 | AMod_Spacejunk | LEOPARD, Huk, denballakh, ringill | [AMod_Spacejunk](https://github.com/space-rangers-mods-workshop/AMod_Spacejunk) | Spacejunk viewer panel |
 | AMod_MapMarker | Huk, Xenomorphchyma, ringill | [AMod_MapMarker](https://github.com/space-rangers-mods-workshop/AMod_MapMarker) | Adds the ability to place a marker on a galaxy-map system |
 | DenSettingsControl | denball, ringill | [DenSettingsControl](https://github.com/space-rangers-mods-workshop/DenSettingsControl) | Safe to use Adds a panel for editing settings of game |
+| ExpBK | Huk, Klaxons | [ExpBK](https://github.com/space-rangers-mods-workshop/ExpBK) | Warning! Untranslated staff! Expands business center capabilities |
+| ExpTC | Huk, Klaxons, 100kg, Ковбой Билл, ringill | [ExpTC](https://github.com/space-rangers-mods-workshop/ExpTC) | Adds a new base type - Technology Center and some new weapon akrins |
 
 ## ⚖️ License
 
