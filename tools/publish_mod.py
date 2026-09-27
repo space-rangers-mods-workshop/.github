@@ -188,7 +188,11 @@ def main() -> None:
         raise SystemExit(1)
     info = data.get("info") or {}
     author = (info.get("Author") or "").strip()
-    summary = _COLOR_TAG_RE.sub("", info.get("SmallDescriptionEng") or "").strip()
+    # `SmallDescriptionEng` is a ModuleInfo field and may span two lines, but a
+    # GitHub repository description must be a single line — it rejects the
+    # newline with "Description control characters are not allowed". Collapse
+    # the whitespace the same way the showcase does for `mod_summary`.
+    summary = " ".join(_COLOR_TAG_RE.sub("", info.get("SmallDescriptionEng") or "").split())
     section = (info.get("SectionEng") or "").strip() or WORKSHOP_SECTION
     based_on = data.get("based_on") or []
 
